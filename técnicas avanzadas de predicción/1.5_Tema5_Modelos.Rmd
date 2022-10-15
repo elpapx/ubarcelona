@@ -1,0 +1,565 @@
+
+---
+title:    "Técnicas Avanzadas de Predicción Introducción a Métodos Temporales y Espaciales"
+license:  by-nc-sa
+urlcolor: blue
+output:
+  word_document:  
+    toc: yes
+    reference_docx: template_style.docx
+  html_document: 
+    theme:        cosmo 
+    highlight:    tango 
+    css: mystyle.css
+    toc:          true
+    toc_float:    true
+    code_folding: show
+  epuRate::epurate:
+    toc:             TRUE
+    number_sections: FALSE
+    code_folding:    "show"
+  pdf_document:   default
+---
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+source("./Data/Functions.R")
+load(file='t1.RData')
+load(file='t2.RData')
+load(file='t3.RData')
+load(file='t4.RData')
+```
+
+<center>
+![fig_ini](./figures/fig_ini.jpg){width=50%}
+<center>
+Fuente de la Imagen: [https://es.wikipedia.org/wiki/Star_Wars:_Episodio_V_-_El_Imperio_contraataca](https://es.wikipedia.org/wiki/Star_Wars:_Episodio_V_-_El_Imperio_contraataca)   
+  
+  
+**Objetivos Específicos**   
+  
+* Conocer dentro de los modelos lineales las diferentes posibilidades que tenemos ante bases de datos temporales o espaciales. 
+* Entender cómo se rompen las hipótesis/supuestos iniciales del modelo lineal con datos con retardos espaciales o temporales.
+* Aprender a plantear un problema temporal o espacial y el tipo de predicción que podremos hacer con estos modelos. 
+
+
+# 5.5 Introducción a Métodos Temporales y Espaciales 
+  
+## 5.5.1 Introducción a Métodos Temporales 
+
+En esta subsección, vamos a adentrarnos brevemente en el mundo de las series temporales. Vamos a disponer de una base de datos como antes, en esta base de datos vamos a encontrar nuestra variable respuesta, la única diferencia con respecto a lo que hemos visto es que las observaciones sucesivas no son independientes entre ellas. Es decir, el valor que toma nuestra variable ahora va a depender entre otras cosas de valores pasados que ha tomado. 
+
+Las series temporales las podemos dividir en:
+
+* Series estacionarias: Media y varianza de la variable respuesta son constantes a lo largo del tiempo. 
+* Series no estacionarias:  Media y varianza de la variable respuesta no son constantes a lo largo del tiempo. 
+
+---
+  
+**ACTIVIDAD: Tasas de Paro**
+  
+Contamos con los DATOS procedentes del INE con las tasas de paro por trimestre. 
+
+```{r results='asis', size="small"}
+tasas<-read.csv("./Data/table_5.06.csv",sep=",")[,-1] 
+inicio<-2000
+fin<-2019
+tasas<-dplyr::filter(tasas,Edad=="De 25 a 29 años",year<=fin,year>=inicio)
+plot(tasas$ToT,type="l")
+```
+
+
+**Objetivo**: Hacer un análisis del paro en jóvenes y hacer una descomposición de la serie temporal y lograr hacer predicciones con un modelo de serie temporal. 
+
+---
+
+Antes que nada **¿Para qué queremos usar series temporales dentro de la modelización que hemos estado viendo?**
+
+Pueden ser dos los motivos. El primero nuestro interés en conocer o estimar la tasa de paro desde el punto de vista económico, para explicar ciertos patrones o comportamientos. El segundo, puede que la variable tasa de paro sea una variable explicativa de nuestro modelo de COMPRAS ONLINE o del PRECIO DE LA VIVIENDA. Para predecir lo que ocurrirá el próximo año, tendremos que estudiar nuestra variable explicativa y saber cómo se va a comportar dentro de una lógica estadística.  
+  
+Partimos de la idea que la serie temporal la podemos descomponer en Tendencia y en Fluctuación cíclica. Dentro de la ciclicidad tendremos variaciones estacionales de la serie a lo largo de un periodo de tiempo y movimientos irregulares aleatorios o producidos por fenómenos concretos (terremotos, sequías, atentados...).
+
+Entonces nuestra variable objetivo:
+
+$$ Y_t=Tendencia_t+Estacionalidad_t+Error_t $$
+Realizamos nuestra primera descomposición de la serie:
+
+**¿Cómo la descompone?**
+
+* Utilizando una media móvil para el cálculo de la tendencia.
+* Una vez extraída la tendencia de la serie principal se calcula la media de cada periodo para obtener la parte estacional.
+* Por último, la parte aleatoria será la diferencia entre las dos anteriores y la serie real. 
+  
+< importante >  
+
+** !Cuidado¡, hay que verificar que la serie tenga varianza constante y sea estacionaria**  
+  
+< /importante >  
+
+* En el caso de que la varianza de la serie no fuese constante en el tiempo, se recomienda una transformación de la serie al igual que explicábamos en las bases de datos anteriores. Esto lo podemos hacer tomando logaritmos sobre la serie. 
+
+```{r results='asis', size="small"}
+x <- ts(tasas$ToT, start = c(inicio, 1), end = c(fin, 4), frequency = 4)
+x<-log(x)
+plot(decompose(x))
+```
+
+Con esto tenemos una idea de cómo se comporta nuestra serie. En este caso tiene una tendencia que va unida al ciclo económico y luego tiene una estacionalidad en la que la tasa de paro cae en los meses de primavera-verano y luego va cayendo en meses posterior es debido principalmente al sistema económico español. 
+
+**¿Cómo podemos hacer predicciones con esta información?**  
+
+Hay que recurrir a los modelos ARIMA los cuales se basan en el principio de que vamos a conseguir hacer una predicción de una variable en el tiempo, únicamente con la información de su pasado. No vamos a recurrir a variables exógenas, simplemente vamos a realizar el análisis de la serie frente a sí misma en el pasado. 
+
+**Modelos Autoregresivo (AR)**
+
+El valor de la variable depende de los "p" valores anteriores.
+
+$$ Y_t=\beta_0+\beta_1*Y_{t-1}+...+\beta_n*Y_{t-p}+u $$
+
+**Modelos Media Móvil (MA)**
+
+El valor de la variable depende de la media ponderada de las "q"" perturbaciones aleatorias precedentes.  
+
+$$ Y_t=\rho_0+e_t-\rho_1*e_{t-1}-...-\rho_n*e_{t-n} $$
+
+**Autocorrelación y Autocorrelación Parcial** 
+
+Una medida para ver a priori el tipo de modelo que tenemos entre manos es ver la autocorrelación de las variables. 
+
+$$  correlacion(time1,time2)=\frac{cov(time1,time2)}{(var(time1)var(time2))^{0.5}}   $$
+La correlación parcial, en lugar de tener en cuenta dos "lags" temporales, se corrige con la correlación entre los tiempos entre ellos. La única que permanecerá inalterada será la correlación de orden 1, que como no tiene tiempos entre medias, pues permanece equivalente. 
+
+```{r results='asis', size="small"}
+ac<-acf2(x)
+```
+  
+En la primera parte tenemos la autocorrelación retardo a retardo y en la segunda la autocorrelación parcial (corregida). 
+
+* Si la función de autocorrelación decrece rápidamente cuando incrementa el retardo, es una señal de modelo autorregresivo. Si es un modelo autorregresivo de orden p, entonces encontraremos en la autocorrelación parcial los p primeros coeficientes distintos a cero, y el resto cero. 
+* En los modelos de medias móviles, la función de autocorrelación es cero para retardos superiores a q, y la parcial decrece rápidamente. 
+
+**¿Qué tenemos aquí?** **¿Un AR,MA o Mix ARIMA?** **¿Y qué tipo de retardo podemos establecer?**
+
+Tenemos que encontrar el mejor modelo de tal forma que se encuentre qué grado de AR y MA son los mejores (para una serie estacionaria). Si la serie no es estacionaria (Media Constante), tendremos que buscar un parámetro adicional, un parámetro "d" que nos diga que grado diferencial tendríamos que meter en la serie para corregir su media. 
+
+De tal forma que:
+* si es estacionaria la serie, solamente tendremos que ajustar AR+MA
+* si no es estacionaria la serie, tendremos que ajustar AR+MA+d
+
+ARIMA(AR=p,d=d,MA=q) -> Si hacemos algún valor cero, estaríamos ante un AR,ARMA,ARd,MA....
+
+< recuerda >  
+  
+Como cualquier modelo que hemos visto, tenemos que definir p,d,q hasta que los residuos sean normales, ruido blanco, incorrelacionados y mínimos....  
+
+< /recuerda >  
+
+**¿Da igual que tengamos datos anuales o trimestrales?**
+
+No, cuando la frecuencia es menor a 1 año, tenemos más complejidad en el modelo. La detección de un comportamiento estacional es clave ya que es posible incorporar a un modelo ARIMA (p,d,q) las correlaciones existentes entre observaciones separadas por periodos estacionales.
+
+Daría lugar al proceso:
+
+$$ ARIMA(p,d,q)*XARIMA(P,D,Q)_{frecueciaanual}$$
+
+Tendríamos que calibrar:
+
+* p retardos del AR a la parte regular
+* q retardos del MA a la parte regular
+* d diferencias a la parte regular
+* P retardos AR a la parte estacional
+* Q retardos MA a la parte estacional
+* D diferencias a la parte estacional.
+
+**¿Tenemos que ir a manubrio probando?**
+
+Es una opción. Esto nos permite ir aprendiendo del proceso y de la serie, pero hay otra forma. Paquete Auto-Arima. Igual que el Stepwise que vimos , pero en series temporales.
+
+
+```{r results='asis', size="small"}
+auto.arima(x)
+```
+  
+El modelo que minimizaría el AIC sería un modelo con un autoregresivo de orden 1 y en la parte estacional una media móvil sobre los residuos con 1 retardo. Con este modelo ya podemos hacer una evaluación del paro previsible para el próximo año dada nuestra serie histórica. 
+
+Hay diferentes metodologías para estimar series temporales. Esta es la original y la que lleva la esencia de las series temporales. Metodologías ligeramente más avanzadas proponen otro tipo de soluciones como incorporar variables explicativas adicionales a valores de la propia serie a regresionar. También es bastante frecuente encontrar últimamente series temporales modelizadas con redes neuronales.   
+  
+[Series vs Redes](https://dialnet.unirioja.es/descarga/articulo/7025149.pdf)   
+  
+**¿Entonces, cuáles serán las tasas de desempleo más probables para el próximo año?**
+  
+Tendríamos que utilizar el modelo anteriormente calibrado o el ajustado manualmente para hacer la predicción correcta. El proceso es similar al que hacíamos con los glm. Multiplicando los coeficientes por el regresor elegido obtendremos una predicción. 
+  
+```{r results='asis', size="small"}
+futurVal <- forecast(auto.arima(x),  level=c(90),8)
+plot(futurVal)
+```
+  
+Aun teniendo un intervalo de confianza bastante amplio, analizando la serie temporal y lo vivido hasta el cierre de los datos, la serie estima que durante 2020 el paro en edades jóvenes debiera seguir disminuyendo.  
+Podéis imaginaros que ni este ni ningún modelo estadístico podría haber hecho una valoración teniendo en cuenta los efectos de una crisis sanitaria. 
+
+< recuerda >  
+
+Los modelos estadísticos calcularán predicciones en base a lo vivido. Si un evento no ha ocurrido anteriormente, necesitaríamos muchas hipótesis y supuestos para poder hacer una valoración de su impacto. No sería posible hacer una valoración con un modelo estadístico tal y como los estamos viendo, puesto que nuestros datos observados no contemplan ninguna crisis de este tipo.  
+Un supuesto podría ser que esta crisis actual va a tener unos efectos similares a la de 2008, entonces nuestas predicciones si que podrían hacerse.
+
+< /recuerda >  
+
+
+< piensa un minuto >
+
+La pregunta que os hago es si debieramos incluir lo ocurrido este año 2020 para extrapolar e inferir lo que ocurrirá en 2021 o 2022.  
+
+< /piensa un minuto >  
+
+Dependerá de la persona que se le pregunte. En mi opinión, no debiera introducirse, puesto que los datos estarían totalmente impactados por la crisis sanitaria. Se deberían hacer ajustes sobre los datos para poder utilizarlos.  
+
+## 5.5.2 Introducción a Métodos Espaciales 
+  
+La última pregunta que nos hacíamos anteriormente era:
+
+**Cuando hemos testado la autodependencia de los residuos, lo hemos hecho con un entorno estático o bien vistos a lo largo del tiempo. ¿Y si los residuos están relacionados espacialmente?.**  
+
+Volvemos a nuestra primera base de datos de compras ONLINE. Con esta base de datos comenzábamos a aprender el mundo de las regresiones lineales y de la inferencia. Aprendimos entre otras cosas que no podemos dar por bueno un modelo hasta estar convencidos de que las hipótesis previa resolución (estimación de las betas) son correctas.  
+  
+**¿Para qué hacíamos esto?**. 
+
+**Autocorrelación Temporal** -> No queríamos que nuestro modelo tuviese autocorrelación temporal puesto que estaríamos diciendo que nuestro modelo vale para este año, sin embargo, para años venideros no va a funcionar puesto que el error depende del tiempo.   
+< recuerda >  
+
+Si aparece autocorrelación en los residuos, o residuos no independientes, además de anular matemáticamente la optimización que hemos hecho, puede traer graves consecuencias para nuestro negocio. Podemos hacer campañas comerciales o tarifas específicas para un segmento de personas que hubiese funcionado el año pasado, pero que el año que viene no va a funcionar.  
+
+< /recuerda > 
+
+Gracias a nuestra destreza modelizando, esto no ocurría y de acuerdo a los tests todos los test de residuos estaban bien posicionados.  
+
+**¡Cuidado!, si cambiamos ligeramente el párrafo anterior vamos a ver lo que pasa**
+
+**Autocorrelación Espacial** -> No queríamos que nuestro modelo tuviese autocorrelación espacial puesto que estaríamos diciendo que nuestro modelo vale para una zona, sin embargo, para otras zonas no va a funcionar puesto que el error depende del espacio.    
+< sabías que >  
+
+Si aparece autocorrelación espacial en los residuos, o residuos no independientes, además de anular matemáticamente la optimización que hemos hecho, puede traer graves consecuencias para nuestro negocio. Podemos hacer campañas comerciales o tarifas específicas para un segmento de personas que hubiese funcionado en una zona, pero que en otra zona no va a funcionar.  
+
+< /sabías que >  
+
+< piensa un minuto >  
+
+**¿Tendría sentido combinar ambos párrafos en uno?**  
+
+< /piensa un minuto >  
+  
+Por supuesto, es un tema algo más avanzado que no incorporaré al temario, pero podéis encontrar modelos de corte trasversal espacial o lo que es lo mismo modelos espacio temporales en la literatura estadística. 
+Recomendado: Elhorst, J. P. (2014). Spatial econometrics: from cross-sectional data to spatial panels (Vol. 479, p. 480). Heidelberg: Springer.  
+
+
+**¿Qué es la dependencia espacial?**
+
+* La dependencia espacial es el grado de asociación / correlación entre observaciones próximas entre sí.  
+* Existencia de una relación en un punto del espacio y lo que ocurre en otro lugar.  
+* El valor de una variable depende del valor de sus vecinos.  
+* Coincidencia de valores altos/bajos en un lugar.  
+
+**¿Quién es vecino de quién?**  
+
+Matriz de vecindad = W.
+
+<center>
+![fig5.1.9](./figures/fig_5.1.9.jpg){width=100%} 
+<center>
+Fuente de la Imagen: [www.scielo.org.co](http://www.scielo.org.co/scielo.php?script=sci_arttext&pid=S0121-215X2019000100001) 
+
+Simplemente vamos a indicar dentro de una matriz:
+
+1 : El individuo i y el individuo j son vecinos.
+0 : El individuo i y el individuo j no son vecinos. 
+Dependiendo del criterio de adyacencia, la matriz será simétrica o no !
+
+< sabías que >  
+
+Existen todas las combinaciones de vecindad que queráis meter. Únicamente, tened en mente cosas que tengan sentido estadístico o que puedan meterse en una matriz nxn.
+
+< /sabías que >  
+  
+
+**¿Hay alguna forma de medir la dependencia espacial?** 
+
+Con el test de I-Moran. 
+
+$$ I = \frac{n}{\sum_i \sum_j w_{ij}} \frac{\sum_i \sum_j w_{ij} (x_i - \bar{x}) (x_j - \bar{x})}{\sum_i (x_i - \bar{x})^2} $$
+Donde W es la adyacencia entre Xi y Xj. La matriz W forma la matriz de pesos espaciales. 
+
+El test Imoran tomará valores entre -1 y 1. 1 querrá decir que tenemos dependencia espacial positiva y -1 que tenemos dependencia espacial negativa. 0 que no hay dependencia espacial. 
+
+**¿Tenemos dependencia espacial en los residuos de nuestro modelo de Compras Online?** 
+
+Vamos a comprobarlo con R. Vamos a probar seleccionando 5 vecinos y 10 vecinos de cada persona por cercanía. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+
+moran.test(x = nuevo_modelo_final$resid, listw = nb2listw(nb, style="W"))
+moran.plot(x = nuevo_modelo_final$resid, listw = nb2listw(nb, style="W"),main="Gráfico I Moran")
+```
+
+Solamente muestro 10 vecinos. Para 5 lo podéis hacer vosotros. **¿Qué vemos?**, vemos que el I-Moran es altamente significativo (p-valor), lo cual es mal síntoma. Hay dependencia espacial en el modelo que habíamos valorado como bueno.... y nadie nos había dicho nada.....  
+Esto significa que por muy bueno que fuese nuestro modelo, no está teniendo en cuenta el tema de la cercanía entre personas. Quiere decir que si alguien de mi entorno compra online, yo voy a estar altamente influido para comprar online y si alguien de mi entorno deja de comprar en esta web, yo voy a estar influido para dejar de comprar. Y todo esto, tan simple como es contarlo, lo estamos olvidando en la modelización.
+
+Lo que nos está sacando el Imoran es que los residuos están interconectados. Que los residuos altos o positivos están cerca geográficamente de los altos y los bajos están cerca geográficamente de los bajos.
+
+Valores Altos del gasto se encuentran cerca de otros que tienen valores altos.  
+Valores Bajos del gasto se encuentran cerca de otros que tienen valores bajos.  
+
+**Muy Importante: INTERPRETACIÓN. ¿Por qué puede estar sucediendo?**  
+  
+* La geolocalización puede estar enmascarando otras variables relevantes. Puede ser que la zona superior sea una zona rica, y la parte de la derecha una parte deprimida económicamente…  
+* Puede haber efecto llamada. La gente habla entre sí, y habla sobre precios y productos. Puede que individuos se influyan entre ellos en el precio que pagarían por un determinado producto.  
+* Puede ser que haya factores geográficos muy distintos por ubicación. Puede que el número de centros comerciales en un sitio y en otro sea muy distinto y esto influya en el precio de búsqueda y efectivo que pagaría un individuo.
+
+**¿Sabemos si están concentrados en una zona en concreto del mapa estos casos?** 
+
+No. Lo que nos está diciendo es que en todo el mapa está pasando esto. Quiere decir que todos los individuos de nuestra base de datos están influenciados por gente de su alrededor tanto positiva como negativamente.  
+
+Para ver si además de esto, hay alguna zona en el mapa que presenta un alto grado de dependencia espacial. Es decir, una dependencia espacial local, podemos llamar al test LISA. Es equivalente al I-Moran pero lo vamos a hacer a nivel regiones. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+imoranlocal<-as.data.frame(localmoran(x = nuevo_modelo_final$resid, listw = nb2listw(nb, style="W")))
+tabla$registo<-1                         
+#pl_pt(tabla,color2 = imoranlocal$Z.Ii,size2 =tabla$registo ,dd = 6)                       
+```
+<center>
+![fig5.2.0](./figures/fig_5.2.0.jpg){width=100%} 
+<center>
+
+Lo que nos saca el test Imoran es el valor del estadístico para cada una de las zonas. Nos interesa aquellos valores del estadístico que sean suficientemente grandes como para decir que es significativo. Por los datos que nos saca, centrándonos en aquellos valores en color rojo, podemos ver cierta dependencia espacial en la zona sur-oeste.  
+
+Aunque mi única intención es alimentar vuestra curiosidad por este tipo de modelos y ver las posibilidades que plantean sin llegar a un análisis muy detallado de la materia. Hay que decir que a veces la dependencia espacial confunde la heterocedasticidad espacial. **¿Qué quiere decir esto?** Antes estábamos comentando que el problema planteaba una dependencia espacial severa. Puede en algunos casos que la dependencia espacial se confunda con heterocedasticidad espacial, o puede que convivan autocorrelación espacial y heterocedasticidad espacial. La heterocedasticidad espacial es la diferencia en la varianza del error a lo largo del mapa.  
+  
+En el caso que estamos analizando parece que además de existir una dependencia espacial en el mapa, algo de heterocedasticidad espacial hay también. (Foco Sur-Oeste de Madrid. )
+
+**¿Qué hacemos ante tal problema?**
+
+Defino una serie de opciones que tenemos para ir venciendo a la dependencia espacial:
+
+1. Incorporo más variables relacionadas con el espacio. Ejemplo: Renta por municipios; Distancia a principales redes de carreteras; Densidad de población; etc..
+
+Check Imoran.
+
+2. Defino clusters espaciales y los incorporo en el modelo estadístico. Ejemplo: Ciertos barrios tienen propensión a comprar mucho, entonces creo una variable que para estos barrios tome valor 1 y para el resto 0. Algoritmos interesantes para proponer un cluster espacial: Satscan o modelos GWR.
+
+Check Imoran.
+
+3. Cambiar nuestro GLM, por un GLMSpacial.
+
+**Spatial Autorregresive Model**
+
+Lo definimos como:
+
+$$ Y=X\beta + \rho WY+u $$
+Donde W es la matriz de pesos espaciales. 
+
+**¿Qué quiere decir este modelo?**
+
+Quiere decir que la Y se explica con las variables exógenas como siempre pero hay un factor más que es "rho" que es el impacto "boca a boca". Lo cual quiere decir que los individuos están impactados por lo que sucede a su alrededor.
+
+Lo resolvemos:
+
+$$ Y=(I-\rho W)^{-1}(X\beta +u) $$
+
+La estimación de las betas la realizamos maximizando la verosimilitud.
+
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD_hasta_57 + EDAD_despues_57 + GENERO + Log_Ing + Dens_h')
+
+nuevo_modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+modelo_espacial_sar <- lagsarlm(formula = formula,data=tabla, listw = nb2listw(nb, style="W")) 
+summary(modelo_espacial_sar)
+
+paste("residuos modelo GLM",sum((nuevo_modelo_final$resid)**2))
+paste("residuos modelo GLMEspacial",sum((modelo_espacial_sar$residuals)**2))
+```
+
+Como podemos ver el modelo rebaja mucho el error medio del modelo. Es algo realmente interesante porque nos acercamos al "verdadero" valor de las betas. Desmigando los datos y conociendo este tipo de técnicas podemos acercarnos a la realidad.
+En este modelo SAR, la variable dependiente está autocorrelacionada espacialmente hablando. 
+Quiere decir que el valor que toma una determinada variable, está influenciado por el valor que toma sus vecinos. 
+Por eso tenemos que introducir en la ecuación la matriz de pesos espaciales y la respuesta autocorrelacionada. 
+
+Probablemente a estas alturas, ya casi finalizando el tema os preguntaréis:  
+
+**¿Cómo puedo saber qué modelo tengo que utilizar en cada momento?**  
+
+Aunque se han desarrollado algoritmos que te dan una indicación del tipo de modelo, función link, distribución a elegir, etc... la realidad es que el mejor aliado para conocer el verdadero modelo es el conocimiento de la materia. La intuición basada en experiencia es lo que nos hace llegar a modelos cada vez mejores.  
+
+< importante >  
+
+**Tenéis que dedicar tiempo a los datos, a conocer el problema y antes de poneros a programar y a probar algoritmos, hay que pensar en qué tipo de solución podemos darle a dicho problema**. Probablemente, después de un tiempo de reflexión no va a salir el mejor modelo a la primera, sino que habrá que probar con varios, pero llevaremos mucho terreno ganado. 
+
+< /importante >  
+
+
+**Spatial Error Model**
+
+Lo definimos como:
+
+$$ \begin{align}
+Y=X\beta + e  \\
+e = \rho W e + \epsilon 
+\end{align}$$
+Donde W es la matriz de pesos espaciales. 
+
+**¿Qué quiere decir este modelo?**
+
+Quiere decir que el error lleva implícito una estructura espacial. La existencia de factores o variables no considerados en la especificación del modelo trasladan la dependencia espacial al término de error. 
+
+Lo resolvemos:
+
+$$ Y=X\beta + (I- \rho W)^{-1} \epsilon   $$
+La estimación de las betas la realizamos maximizando la verosimilitud.
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD_hasta_57 + EDAD_despues_57 + GENERO + Log_Ing + Dens_h')
+
+nuevo_modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+modelo_espacial_sar <- lagsarlm(formula = formula,data=tabla, listw = nb2listw(nb, style="W")) 
+modelo_espacial_sem <- errorsarlm(formula = formula,data=tabla, listw = nb2listw(nb, style="W")) 
+summary(modelo_espacial_sem)
+
+paste("residuos modelo GLM",sum((nuevo_modelo_final$resid)**2))
+paste("residuos modelo GLMEspacial SAR",sum((modelo_espacial_sar$residuals)**2))
+paste("residuos modelo GLMEspacial SEM",sum((modelo_espacial_sem$residuals)**2))
+```
+
+Podemos ver que SAR y SEM dan un ajuste bastante parecido dados los residuos.
+
+**¿Destruyen ambos la dependencia espacial de los residuos?**
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+#Dependencia espacial del SAR
+moran.test(x = modelo_espacial_sar$residuals, listw = nb2listw(nb, style="W"))
+#Dependencia espacial del SEM
+moran.test(x = modelo_espacial_sem$residuals, listw = nb2listw(nb, style="W"))
+
+```
+
+Ambos la destruyen....... parece que el SEM es el que mejores resultados otorga.
+
+Antes de ver el último modelo espacial que me interesaría que conozcáis, deciros que estos modelos que hemos visto en entorno gaussiano están igualmente probados y desarrollados en entorno generalizado con función exponencial. Evidentemente el gasto computacional para calcular estos modelos es mucho mayor, pero los avances en computación, en GIS y en formulación espacial hacen que el futuro vaya encaminado a que estos modelos más completos y que pueden sacar patrones más interesantes y completos. 
+
+**Modelos de Regresión Geográficamente Ponderados**
+
+Para finalizar os voy a enseñar otro método interesante para ver si aún nos queda heterocedasticidad en el modelo. Aunque lo podéis aplicar a una infinidad de problemas. Se tratan de los modelos de regresión geográficamente ponderados.  
+Son modelos que responden a la siguiente pregunta:
+
+**¿El efecto de una variable sobre nuestra respuesta es independiente del espacio?**
+
+Quiere decir que la edad es un factor clave (ya lo sabíamos), pero ¿afecta de la misma manera el cambio en comportamiento del cliente en el sur que en el norte?. Este tipo de algoritmos lo pone a prueba.
+
+La idea detrás de los modelos GWR es la medición de la relación entre la variable dependiente y las independientes a través del espacio. En lugar de calibrar un modelo único, miraremos un modelo global a través de la combinación de las diferentes áreas geográficas. La modelización GWR calibra tantos modelos como puntos hay en nuestra base de datos. Estima un modelo por punto cogiendo los puntos que hay a su alrededor, dando mayor importancia a los que están en el centro.
+La técnica GWR no está desarrollada como algoritmo econométrico puro, sino que surge y tiene más empleabilidad para suavización o interpolación de datos (véase también métodos krigging).
+
+Podéis ver un ejemplo de krigging en R en la siguiente web.  
+[web](https://rspatial.org/raster/analysis/4-interpolation.html#introduction)  
+  
+Pasamos de:  
+
+$$ Y=\beta_1X_1+\ldots+\beta_pX_p+u $$
+a:  
+
+$$ Y_s=\beta_{s1}X_1+\ldots+\beta_{s1}X_p+u $$
+  
+Donde s es cada zona geográfica que queremos representar. 
+  
+Resolvemos:
+
+$$ \beta=(X^tW_sX)^{-1}X^tW_sY $$
+Con el modelo global general tendremos valores únicos de cada estimador para todos los puntos de nuestra muestra, asumiremos independencia espacial de los residuos y no tendrá en cuenta la distancia entre puntos a la hora de hacer una valoración.  
+  
+En el modelo ponderado geográficamente tendremos diferentes estimadores para cada una de las variables dependiendo del área geográfica, reduciremos o eliminaremos la dependencia espacial de los residuos y se tendrá en cuenta la distancia entre puntos a la hora de predecir.
+
+Este tipo de modelos se genera en 2 partes:
+
+1. Primero hay que definir s. ¿Cuál es el ancho espacial óptimo para ponderar nuestro modelo?. El algoritmo probará con diferentes distancias y decidirá cual es el ancho ideal.
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+#Convierto mi base de datos en base de datos espacial
+tabla$residuos<-modelo_espacial_sem$residuals
+puntos_sp<-tabla
+coordinates(puntos_sp)<- c("LONG","LAT")
+proj4string(puntos_sp) <- CRS("+proj=longlat +datum=WGS84")
+#Obtenemos el mejor BW
+bw <- gwr.sel(residuos~1, data=puntos_sp)
+
+paste("El mejor ancho de banda es:",bw)
+```
+
+2. Con este ancho de banda vamos a estimar el modelo. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+#Modelizamos
+g <- gwr(residuos~1, data=puntos_sp, bandwidth=bw)
+```
+
+**¿Qué hemos hecho?**
+
+¿Dependen los residuos del espacio?. Justamente estamos viendo si podríamos meter algún aspecto espacial adicional para completar nuestra modelización. 
+Nota: Estamos solamente metiendo el intercept en el modelo, pero este tipo de modelos también permiten meter más variables para ver si tienen algún comportamiento espacial. 
+
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+tabla$intercept<-g$SDF$`(Intercept)`
+#pl_pt(tabla,color2 = tabla$intercept,size2 =tabla$registo ,dd = 6) 
+```
+
+<center>
+![fig5.2.1](./figures/fig_5.2.1.jpg){width=100%} 
+<center>
+
+Interesante el patrón que estamos viendo en los datos. Resulta que después de haber hecho una modelización casi perfecta nos hemos dado cuenta que los datos tenían dependencia espacial y ahora nos damos cuenta que incluso después de vencer la dependencia espacial, tenemos una heterocedasticidad espacial importante. 
+
+< piensa un minuto >  
+
+**¿Y si sois directores de esta empresa?**  
+**¿Os hubieseis quedado con el SuperModelo que veíamos en el apartado 2?**
+  
+< /piensa un minuto >  
+  
+**¿Hasta qué punto es importante predecir bien las betas y contemplar todos estos puntos?**
+
+Hasta el punto de que está en juego la supervivencia de la empresa. Imaginemos que antes de conocer las técnicas espaciales ponemos en marcha una acción comercial por la que los individuos más propensos a comprar (los que creemos que son los más propensos), van a pagar menor coste de servicio. 
+Otra compañía (competencia) va a dar exactamente la misma noticia a los clientes, pero seleccionando con este último modelo sus clientes más propensos.
+
+**¿Qué va a ocurrir?**   
+
+Los clientes propensos de verdad, van a irse directamente a la compañía que mejor los elige. Los menos propensos, si creen que van a ser elegidos como buenos consumidores, van a irse a la compañía que peor elige a sus clientes y así en bucle. 
+Al final del bucle la compañía que mejor elige a sus clientes dado que ha ido creciendo con clientes buenos, puede abaratar los costes puesto que trabaja con economías de escala y dada toda la producción que tiene, puede establecer unos costes muy bajos. A la compañía que ha elegido peor a sus clientes, le va a pasar totalmente lo contrario, por lo que al final todos los clientes independientemente de la oferta, van a querer comprar con la compañía que mejor eligió a sus clientes. 
+
+  
+  
+** IMPORTANTE - IDEAS CLAVE **
+
+* Las series temporales cambian la perspectiva del modelo corte trasversal que veníamos trabajando. En ellas se incumple el supuesto de que las observaciones de nuestra variable respuesta son independientes. Para ello la variable respuesta con el nuevo modelo propuesto se explica sobre retardos sobre si misma. 
+* Los modelos ARIMA combinan retardos temporales sobre la variable respuesta directamente y sobre los residuos de la serie. El grado del retardo lo conseguiremos tanto con conocimiento de la propia serie como con la minimización de algún indicador como AIC,R cuadrado, BIC.
+* Los modelos espaciales cambian de nuevo la perspectiva y proponen soluciones cuando la dependencia de la variable dependiente es espacial.
+
+# Conclusiones Generales
+
+A lo largo de estos temas hemos visto el proceso de modelización dentro de la regresión lineal con todas sus características y posibilidades. Existe todo un elenco de algoritmos y metodologías para estimar fenómenos. Dentro de las que vamos a estudiar en el master, podemos decir que todas tienen su utilidad y dependiendo del problema a tratar serán mejores unas que otras.  
+Vuestro trabajo es decidir cuál de dichas herramientas es la más apropiada para poder estructurar y resolver un determinado problema. Solo conociendo las tripas de los algoritmos vamos a ser capaces de poder entender bien las soluciones y los retos que se nos plantean.   
+
+Estas herramientas que hemos visto a lo largo del tema, son de las más utilizadas en la práctica por su flexibilidad, por sus propiedades estadísticas e interpretabilidad de resultados. Hay todo un mundo de algoritmos más allá de los modelos lineales que hemos visto, pero os aseguro que entendiendo las partes del modelo lineal, lleváis buena parte del camino recorrida. 
+
+<center>
+![fig5.2.2](./figures/fig_5.2.2.jpg){width=100%}
+</center>
+Fuente de la Imagen: [Elaboración Propia]
+
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+save.image(file='t5.RData')
+```
+  

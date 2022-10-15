@@ -1,0 +1,624 @@
+
+---
+title:    "Distribuciones de Probabilidad y el TCL"
+license:  by-nc-sa
+urlcolor: blue
+output:
+  html_document: 
+    theme:        cosmo 
+    highlight:    tango 
+    toc:          true
+    toc_float:    true
+    code_folding: show
+  word_document:  default
+  epuRate::epurate:
+    toc:             TRUE
+    number_sections: FALSE
+    code_folding:    "show"
+  pdf_document:   default
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r,echo=FALSE, out.width = "500px"}
+knitr::include_graphics("./data/img/starwars.png")
+```
+
+[Fuente: https://logowiki.net/star-wars-episode-iv-logo.html](https://logowiki.net/star-wars-episode-iv-logo.html)
+
+# Objetivos Específicos
+
+* Aprender lo que es una distribución de probabilidad
+
+* Función de distribución vs función de densidad
+
+* Conocer las principales distribuciones de probabilidad discretas y contínuas
+
+* Aprender el Teorema Central del Límite así como sus principales utilidades prácticas
+
+# 1. La Distribucion de Probabilidad
+
+Para entender el concepto de distribución de probabilidad es necesario conocer lo que es una **variable aleatoria**.
+
+Una variable aleatoria no es más que una función que asigna un determinado valor al resultado de un experimento aleatorio. Por 
+ejemplo, los posibles resultados de tirar un dado de 20 caras. En este caso concreto, nuestra variable aleatoria podría tomar los 
+valores de 1 a 20, y la probabilidad de obtener un 1, sería de 1/20.
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-dice.jpg")
+```
+
+Dicho esto, **la distribución de probabilidad es una función que asigna a cada suceso definido sobre la variable la probabilidad de que dicho suceso ocurra**. La distribución de probabilidad está definida sobre el conjunto de todos los sucesos y 
+cada uno de los sucesos es el rango de valores de la variable aleatoria. 
+
+También puede decirse que tiene una relación estrecha con las distribuciones de frecuencia. De hecho, una distribución de 
+probabilidades puede comprenderse como una frecuencia teórica, ya que describe cómo se espera que varíen los resultados.
+
+**La distribución de probabilidad** está completamente especificada por la **función de distribución**, cuyo valor en cada x real es la probabilidad de que la variable aleatoria sea menor o igual que x. Es decir **esta función acumula probabilidades**.
+
+Así pues, las distribuciones de probabilidad nos permitirán saber la probabilidad de un suceso. La notación básica para saber la 
+probabilidad en un determinado punto es la siguiente:
+
+P(X) = La probabilidad de que una variable aleatoria tome un valor específico de X
+P(X>2) = La probabilidad de que una variable aleatoria tome un valor mayor a 2
+
+La función que utilizaremos para saber la probabilidad de un suceso en un punto se llama **Función de Densidad**.
+La función que utilizaremos para saber la probabilidad de un suceso sea mayor o menor que un determinado valor se llama **Función de Distribución**.
+
+Por ejemplo, la probabilidad que un cliente que entra por la puerta me compre un producto exactamente, en este caso sería P(1).
+
+La suma de todas las probabilidades para todos los valores posibles debe ser igual a 1. Además, la probabilidad de un determinado 
+valor o gama de valores debe estar entre 0 y 1. Ten en cuenta esto, es más importante de lo que parece. Si en tu ejercicio te sale 
+una probabilidad superior a 1 o inferior a 0, dale varias pensadas y sobretodo, ni se te ocurra entregarlo.
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-negativeprobabilities.jpg")
+```
+
+Las distribuciones de probabilidad se pueden dividir en dos tipos:
+
+* Distribuciones discretas
+* Distribuciones contínuas
+
+## 1.1 Distribuciones discretas
+
+Las distribuciones discretas pueden asumir un número discreto de valores. Por ejemplo, el lanzamiento de monedas y el 
+recuento de eventos son funciones discretas. 
+
+Este tipo de eventos pueden ser definidos dentro de distribuciones discretas porque no hay valores intermedios. Por ejemplo, en un 
+lanzamiento de monedas sólo puede haber cara o cruz. Del mismo modo, si estás contando el número de coches que hay aparcados en la 
+calle en un determinado momento, podrás contar 10 o 11, pero nunca 10.5.
+
+Para las funciones de distribución de probabilidad discreta, cada valor posible tiene una probabilidad distinta de cero. Es decir, 
+**su función de densidad siempre será mayor a 0**. 
+
+Por ejemplo, la probabilidad de lanzar un número específico en un dado es de 1/6. La probabilidad total para los seis valores es 
+igual a uno, mientras que la probabilidad de lanzar un número par es de 3/6, es decir P(2) + P(4) + P(6).
+
+En la siguiente imagen puedes ver un ejemplo de distribución discreta:
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-discrete.jpg")
+```
+
+[Fuente: https://www.real-statistics.com/binomial-and-related-distributions/poisson-distribution/](https://www.real-statistics.com/binomial-and-related-distributions/poisson-distribution/)
+
+En el gráfico de arriba puedes ver la clásica distribución Poisson de media 3. Tal y como puedes ver, la probabilidad que una 
+observación sea igual a 1 es del 0.15, es decir del 15%. Este es el modo en cómo se calculan las probabilidades en las 
+distribuciones contínuas, mediante sumatorio. Formalmente:
+
+```{r,echo=FALSE, out.width = "250px"}
+knitr::include_graphics("./data/img/tcl-discreteformula.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad)
+
+### 1.1.1 Distribución Binomial
+
+La distribución binomial es una distribución de probabilidad discreta que cuenta el **número de éxitos en una secuencia de n ensayos de Bernoulli independientes entre sí**, con una probabilidad fija **p** de ocurrencia del éxito entre los ensayos.
+
+**Un experimento de Bernoulli se caracteriza por ser dicotómico**, esto significa que únicamente dos resultados son posibles. A uno de estos resultados lo llamaremos **éxito** y tiene una probabilidad de ocurrencia **p,** mientras que al otro resultado lo llamaremos **fracaso**, y tendrá una probabilidad de **1-p**. 
+
+En la distribución binomial el anterior experimento se repite n veces, de forma independiente, y se trata de calcular la 
+probabilidad de un determinado número de éxitos. Para n = 1, la binomial se convierte, de hecho, en una distribución de Bernoulli.
+
+Para representar que una variable aleatoria X sigue una distribución binomial de parámetros n y p, se representa del siguiente 
+modo:
+
+```{r,echo=FALSE, out.width = "150px"}
+knitr::include_graphics("./data/img/tcl-binomial.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad)
+
+**Existen muchas situaciones en las que se presenta una experiencia binomial**. Cada uno de los experimentos es independiente de 
+los restantes (la probabilidad del resultado de un experimento no depende del resultado del resto). El resultado de cada 
+experimento ha de admitir sólo dos categorías (a las que se denomina éxito y fracaso). **El valor de ambas posibilidades ha de ser constante en todos los experimentos**, y se denotan como **p** y **q** respectivamente, o **p** y **1-p** de forma alternativa.
+
+Se designa por *X* a la variable que mide el número de éxitos que se han producido en los n experimentos.
+
+Cuando se dan estas circunstancias, se dice que la variable *X* sigue una distribución de probabilidad binomial.
+
+La función de probabilidad para la Distribución Binomial es la siguiente:
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-binomial2.jpg")
+```
+
+donde x=
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-binomial3.jpg")
+```
+
+siendo
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-binomial4.jpg")
+```
+
+las combinaciones de *n* sobre *x* (*n* elementos tomados de *x* en *x*)
+
+Donde:
+* n: número de ensayos
+* p: probabilidad de éxito
+* X: variable aleatoria binomial
+
+**Ejemplo**
+
+Vamos a imaginar que se lanza un dado (con 6 caras) 51 veces y queremos conocer la probabilidad de que el número 3 salga 20 veces.
+
+En este problema un ensayo consiste en lanzar el dado una vez. Consideramos un éxito si obtenemos un 3; caso contrario, si no sale 
+3 consideramos un fracaso. Definimos X = el número de veces que se obtiene un 3 en 51 lanzamientos.
+
+En este caso tenemos una X ~ B(51, 1/6) y la probabilidad sería P(X=20):
+
+```{r,echo=FALSE, out.width = "350px"}
+knitr::include_graphics("./data/img/tcl-binomial5.jpg")
+```
+
+A continuación tienes sus principales estadísticos:
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-binomial6.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_binomial](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_binomial)
+
+### 1.1.2 Distribución de Poisson
+
+La distribución de Poisson es una distribución de probabilidad discreta que expresa, a partir de una frecuencia de ocurrencia 
+media, **la probabilidad de que ocurra un determinado número de eventos durante cierto período de tiempo**. 
+
+Esta distribución es muy útil para trabajar con la probabilidad de ocurrencia de sucesos con probabilidades muy pequeñas.
+
+Fue propuesta por **Siméon-Denis Poisson**, que la dio a conocer en 1838 en su trabajo Recherches sur la probabilité des jugements en matières criminelles et matière civile (Investigación sobre la probabilidad de los juicios en materias criminales y civiles).
+
+Y respondiendo a la primera pregunta que habrás tenido al ver su nombre, te anticipo que si, probablemente esta es una de las distribuciones con más memes:
+
+```{r,echo=FALSE, out.width = "150px"}
+knitr::include_graphics("./data/img/tcl-poisson1.jpg")
+```
+
+La función de probabilidad para la Distribución de Poisson es la siguiente:
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-poisson2.jpg")
+```
+
+donde:
+
+* *k*: es el número de ocurrencias del evento o fenómeno (la función nos da la probabilidad de que el evento suceda precisamente k 
+veces)
+* *λ*: es un **parámetro positivo** que representa el número de veces que se espera que ocurra el fenómeno durante un intervalodado.
+* *e*: es la base de los logaritmos naturales (e = 2,71828…)
+
+**Ejemplo**
+
+Vamos a imaginar que el 2% de los libros encuadernados en cierto taller tiene encuadernación defectuosa, para obtener la 
+probabilidad de que 5 de 400 libros encuadernados en este taller tengan encuadernaciones defectuosas usamos la distribución de 
+Poisson. En este caso concreto, k es 5 y λ (el valor esperado de libros defectuosos), es el 2% de 400, es decir, 8. Por lo tanto, 
+la probabilidad que estamos buscando es:
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-poisson3.jpg")
+```
+
+A continuación tienes sus principales estadísticos:
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-poisson4.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_Poisson](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_Poisson)
+
+## 1.2 Distribuciones contínuas
+
+Las distribuciones contínuas pueden asumir un número infnitio de valores. Por ejemplo, la temperatura en grados de una determinada 
+región.
+
+A diferencia de las distribuciones discretas, en las que cada valor tiene una probabilidad distinta de cero, **los valores específicos en las distribuciones continuas tienen una probabilidad de cero**. Por ejemplo, la probabilidad de medir 
+una temperatura que es exactamente 32 grados es cero.
+
+¿Por qué? Vamos a considerar la temperatura como un número infinito de otras temperaturas que son infinitesimalmente más altas o 
+más bajas que 32. Al considerar la probabilidad que la temperatura sea exactamente 32, estamos estableciendo una probabilidad 
+estricta en un valor infinitesimalmente pequeño, por lo que es equivalente a cero.
+
+Así pues, las probabilidades de las **distribuciones continuas se miden sobre rangos de valores** en lugar de puntos individuales. Una determinada probabilidad en una distribución contínua nos está indicando la probabilidad de que un valor caiga dentro de un 
+intervalo. Esta propiedad es sencilla de demostrar utilizando un gráfico de distribución de probabilidad:
+
+```{r,echo=FALSE, out.width = "250px"}
+knitr::include_graphics("./data/img/tcl-continuous.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad)
+
+En el gráfico de arriba puedes ver la clásica **distribución normal**. Tal y como puedes ver, la probabilidad que una observación esté situado entre 0 y 2sigma es de 34.1% + 13.6%. Este es el modo en cómo se calculan las probabilidades en las distribuciones 
+contínuas, mediante **integrales definidas**.
+
+```{r,echo=FALSE, out.width = "250px"}
+knitr::include_graphics("./data/img/tcl-continuousformula.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_de_probabilidad)
+
+### 1.2.1 Distribución Normal
+
+Esta distribución es una de las que más aparece en estadística y en teoría de la probabilidad. También podrás encontrarla definida 
+como **Distribución Gaussiana**.
+
+La gráfica de su función de densidad tiene una forma acampanada y **es simétrica respecto de un determinado parámetro estadístico**. Esta curva se conoce como **campana de Gauss** y es el gráfico de una función gaussiana:
+
+```{r,echo=FALSE, out.width = "250px"}
+knitr::include_graphics("./data/img/tcl-continuous.jpg")
+```
+
+La importancia de esta distribución radica en que **permite modelar numerosos fenómenos naturales, sociales y psicológicos**. 
+
+Mientras que los mecanismos que subyacen a gran parte de este tipo de fenómenos son desconocidos, por la enorme cantidad de 
+variables incontrolables que en ellos intervienen, el uso del modelo normal puede justificarse asumiendo que cada observación se 
+obtiene como la suma de unas pocas causas independientes.
+
+La distribución normal también es importante **por su relación con la estimación por mínimos cuadrados**, uno de los métodos de 
+estimación más simples y antiguos.
+
+Sin lugar a dudas, la distribución normal es la más extendida en estadística y muchos tests estadísticos están basados en una 
+"normalidad" más o menos justificada de la variable aleatoria bajo estudio.
+
+La función de probabilidad para la Distribución Normal es la siguiente:
+
+```{r,echo=FALSE, out.width = "400px"}
+knitr::include_graphics("./data/img/tcl-gaussian1.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal)
+
+También podemos definir la Distribución Normal a través de la función de densidad:
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-gaussian2.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal)
+
+**Importante**
+
+**La función de distribución normal estándar es un caso especial de la función donde la media (mu) es igual a 0 y la desviación estándar (sigma) es igual a 1**.
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-gaussian3.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal)
+
+A continuación tienes sus principales estadísticos:
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-gaussian4.jpg")
+```
+
+[Fuente: https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal](https://es.wikipedia.org/wiki/Distribuci%C3%B3n_normal)
+
+# 2. Teorema Central del Límite
+
+El Teorema Central del Límite establece que si se tiene una población con media μ y desviación estándar σ y se toman muestras 
+aleatorias suficientemente grandes de la población con reemplazo, entonces la distribución de las medias de la muestra se 
+distribuirá aproximadamente como una Distribución Normal. 
+
+En el caso de las muestras aleatorias de la población, podemos calcular la media muestra como:
+
+```{r,echo=FALSE, out.width = "150px"}
+knitr::include_graphics("./data/img/tcl-tcl1.jpg")
+```
+
+Y la desviación estandar de la muestra:
+
+```{r,echo=FALSE, out.width = "150px"}
+knitr::include_graphics("./data/img/tcl-tcl2.jpg")
+```
+
+## 2.1 TCL para una población Normal
+
+En la siguiente imagen puedes ver población normalmente distribuida cuya media es de 75 y su desviación estándar es de 8
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-tcl3.jpg")
+```
+
+Si tomamos muestras aleatorias simples (con reemplazo) de tamaño n=10 de la población y calculamos 
+la media de cada una de las muestras, la distribución de las medias de las muestras debe ser aproximadamente normal según el 
+**Teorema Central del Límite**. 
+
+Pese a que el tamaño de las muestras aleatorias simples son inferiores a 30, dado que la población de orígen está distribuida 
+normalmente, esta limitación no es un problema.
+
+En la siguiente imagen puedes ver la distribución de una de las muestras. Pese a no ser exactamente igual que la distribución de la
+población general, se parece bastante, tal y como podrás comprobar:
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-tcl4.jpg")
+```
+
+Si te fijas, podrás comprobar que el rango de la distribución ha variado sensiblemente, ya que mientras la distribución poblacional
+tiene aproximadamente un rango de 60-100 el rango de la distribución de la muestra es de 66-84.
+
+Si calculamos la desviación estándar de la muestra, obtendremos 2.5:
+
+```{r,echo=FALSE, out.width = "150px"}
+knitr::include_graphics("./data/img/tcl-tcl5.jpg")
+```
+
+Este es un valor distinto al de la desviación estándar poblacional que es de 8, por eso puedes observar un rango más estrecho.
+
+## 2.2 TCL para una Distribución Dicotómica
+
+Ahora vamos a suponer que queremos medir la característica X en una determinada población, y esta característica es dictónomica 
+(por ejemplo: el éxito de un determinado tratamiento médico: SI o NO) con un 30% de éxito (p=0.30):
+
+```{r,echo=FALSE, out.width = "250px"}
+knitr::include_graphics("./data/img/tcl-tcl6.jpg")
+```
+
+El Teorema Central del Límite se puede aplicar incluso a poblaciones dicotómicas como ésta, siempre que el mínimo de **np** y **n(1-p)** sea por lo menos 5, donde n se refiere al tamaño de la muestra, y **p** es la probabilidad de éxito en un ensayo determinado. 
+
+En este caso concreto, tomaremos muestras de n=20 con reemplazo, por lo que min(np, n(1-p)) = min(20(0,3), 20(0,7)) = min(6, 14) = 
+6. Por lo tanto, el criterio se cumple.
+
+Anterior vimos que la desviación estandar y la media de una Distribución Binomial es:
+
+```{r,echo=FALSE, out.width = "250px"}
+knitr::include_graphics("./data/img/tcl-binomial6.jpg")
+```
+
+(toma en consideración que la desviación estándar no es más que la raíz cuadrada de la varianza)
+
+La distribución de la muestra poblacional basada en n=20 es la siguiente:
+
+```{r,echo=FALSE, out.width = "300px"}
+knitr::include_graphics("./data/img/tcl-tcl7.jpg")
+```
+
+Así pues, la media de la muestra la podemos calcular como:
+
+```{r,echo=FALSE, out.width = "150px"}
+knitr::include_graphics("./data/img/tcl-tcl8.jpg")
+```
+
+Y su desviación estándar como:
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/tcl-tcl9.jpg")
+```
+
+Ahora, en lugar de tomar muestras de n=20, supongamos que tomamos muestras aleatorias simples (con reemplazo) de tamaño n=10. 
+
+En este escenario no cumplimos el requisito de tamaño de la muestra para el TCL (es decir, min(np, n(1-p)) = min(10(0.3), 10(0.7)) 
+= min(3, 7) = 3). **El tamaño de la muestra debe ser mayor para que la distribución se aproxime a la normalidad**.
+
+**Para saber más**
+
+Los siguientes papers adjuntos pueden serte de utilidad para profundizar más en el Teorema Central del Límite:
+
+* *TCL_Demostración.pdf*: Donde podrás ver la demostración del Teorema Central del Límite.
+* *TCL_Ejemplos.pdf*: Donde encontrarás algunos teoremas relacionados con el TCL y ejemplos resueltos.
+
+# 3. Actividad Guiada.
+
+El ejercicio propuesto consiste en una pequeña demostración práctica de cómo funciona el TCL mediante un elemento común que 
+conocemos todos. El dado de 6 caras. Todos sabemos que puede tomar valores entre 1 y 6 con una probabilidad de 1/6 para cada.
+
+Lo primero que haremos es simular los resultados de un dado creando una función llamada roll:
+
+```{r,warning=FALSE,message=FALSE}
+# Carga paquetes necesarios
+require(plyr)
+require(ggplot2)
+require(stringr)
+
+```
+
+```{r}
+# m = numero de veces lanzado el dado
+# n = numero de dados lanzados
+roll <- function(m, n){
+  set.seed(1234)
+  means <- plyr::ldply(1:m, function(x){
+    return(mean(sample(1:6, n, replace = TRUE)))
+  }) 
+}
+
+```
+
+Ahora que ya tenemos la función **roll()** creada, podemos llamarla para ver los resultados que arrojan 10.000 lanzamientos de 1 único dado. Graficamos el resultado con un gráfico de barras:
+
+```{r}
+# Lanzamiento de 1 dado 10.000 veces
+n_ <- 1
+m_ <- 10000
+
+g<-ggplot(roll(m = m_, n = n_),
+            mapping = aes(x = V1)) +
+  geom_vline(xintercept = 3.5, colour = "tomato3") +
+  labs(
+    subtitle = str_interp('Densidad de las medias del lanzamiento de ${n_} dados ${m_} veces'),
+    x = 'Resultado promedio de la tirada',
+    y = 'Veces que ha salido el valor (en %)'
+  ) +
+  geom_bar(aes(y = ..prop..), alpha = 0.4) +
+  scale_x_continuous(
+    breaks = 1:6,
+    lim =  c(0, 7)
+  ) +
+  lims(
+    y = c(0, 1)
+  )
+g
+
+```
+
+Estos resultados no deberían sorprendernos demasiado salvo que el dado esté trucado.
+
+```{r,echo=FALSE, out.width = "100px"}
+knitr::include_graphics("./data/img/tcl-loadeddice.jpg")
+```
+
+Vamos a añadir el argumento **geom_density()**.
+
+```{r}
+# Añadimos la función de densidad
+g <- g +
+  geom_density()
+g
+
+```
+
+No te preocupes al ver que la función de densidad no está en 0 entre los valores 1,2,3,4,5 y 6. Esto se debe a que la curva se ha 
+suavizado. En realidad, hemos puesto *una función de densidad contínua sobre algo que es discreto*.
+
+Técnicamente, acabamos de producir 10.000 muestras de tamaño 1 (hemos tirado 1 dado 10.000 veces). 
+
+Vamos a incrementar el número de dados lanzados a 4.
+
+```{r}
+# Lanzamiento de 4 dados 10.000 veces
+n_ <- 4
+m_ <- 10000
+
+g<-ggplot(roll(m = m_, n = n_),
+            mapping = aes(x = V1)) +
+  geom_vline(xintercept = 3.5, colour = "tomato3") +
+  labs(
+    subtitle = str_interp('Densidad de las medias del lanzamiento de ${n_} dados ${m_} veces'),
+    x = 'Resultado promedio de la tirada',
+    y = 'Veces que ha salido el valor (en %)'
+  ) +
+  geom_bar(aes(y = ..prop..), alpha = 0.4) +
+  scale_x_continuous(
+    breaks = 1:6,
+    lim =  c(0, 7)
+  ) +
+  lims(
+    y = c(0, 1)
+  ) +
+  geom_density()
+g
+
+```
+
+No solo la curva empieza a parecerse cada vez más a una Distribución Normal si no que se puede observar que las colas de la 
+distribución empiezan a situarse en 1 y 6, convirtiéndolos en los valores menos probables.
+
+Esto tiene sentido, ya que para que el resultado promedio de la tirada sea 1 o 6, es necesario que en los 4 dados salga un 1 o un 6
+a la vez.
+
+Vamos a aumentar el número de dados lanzados a 15.
+
+```{r}
+# Lanzamiento de 15 dados 10.000 veces
+n_ <- 15
+m_ <- 10000
+
+g<-ggplot(roll(m = m_, n = n_),
+            mapping = aes(x = V1)) +
+  geom_vline(xintercept = 3.5, colour = "tomato3") +
+  labs(
+    subtitle = str_interp('Densidad de las medias del lanzamiento de ${n_} dados ${m_} veces'),
+    x = 'Resultado promedio de la tirada',
+    y = 'Veces que ha salido el valor (en %)'
+  ) +
+  geom_bar(aes(y = ..prop..), alpha = 0.4) +
+  scale_x_continuous(
+    breaks = 1:6,
+    lim =  c(0, 7)
+  ) +
+  lims(
+    y = c(0, 1)
+  ) +
+  geom_density()
+g
+
+```
+
+Ahora ya podemos ver la clásica campana que caracteriza a la Distribución Normal. En este caso podemos ver que el pico de la 
+distribución es mucho más elevado que en el caso anterior (es una distribución más apuntalada). En este caso los valores extremos 
+todavía parecen más improbables que en el caso anterior. Concretamente, 2 y 5 ya son eventos que suceden raras veces.
+
+Vamos a simular 10.000 tiradas de 2000 dados.
+
+```{r}
+# Lanzamiento de 2000 dados 10.000 veces
+n_ <- 2000
+m_ <- 10000
+
+g<-ggplot(roll(m = m_, n = n_),
+            mapping = aes(x = V1)) +
+  geom_vline(xintercept = 3.5, colour = "tomato3") +
+  labs(
+    subtitle = str_interp('Densidad de las medias del lanzamiento de ${n_} dados ${m_} veces'),
+    x = 'Resultado promedio de la tirada',
+    y = 'Veces que ha salido el valor (en %)'
+  ) +
+  geom_bar(aes(y = ..prop..), alpha = 0.4) +
+  scale_x_continuous(
+    breaks = 1:6,
+    lim =  c(0, 7)
+  ) +
+  lims(
+    y = c(0, 1)
+  ) +
+  geom_density()
+g
+
+```
+
+Tal y como puedes ver, esta es una distribución muy muy delgada, donde la mayoría de valores estan rondando el valor promedio (3.5). Tal y como puedes ver la dispersión prácticamente ha desaparecido, por lo que, utilizando la formula que hemos visto anteriormente:
+
+```{r,echo=FALSE, out.width = "100px"}
+knitr::include_graphics("./data/img/tcl-tcl2.jpg")
+```
+
+donde **n**= 2000 y **mu** es 3.5,
+
+Podemos deducir que, manteniendo la media población, un incremento de n supone una reducción de la desviación estándar con límite 
+en 0.
+
+Así pues, podemos concluir que **cuanto mayor sea el tamaño de la muestra, más delgada y apuntalada será la Distribución Normal resultante**.
+
+# 4. Ideas Clave
+
+* La distribución de probabilidad es una función que asigna a cada suceso definido sobre la variable la probabilidad de que dicho suceso ocurra
+
+* La función que utilizaremos para saber la probabilidad de un suceso en un punto se llama Función de Densidad. 
+
+* La función que utilizaremos para saber la probabilidad de un suceso sea mayor o menor que un determinado valor se llama Función de Distribución. Es decir, esta función acumula probabilidad.
+
+* La suma de todas las probabilidades para todos los valores posibles debe ser igual a 1.
+
+* La función de densidad siempre será mayor a 0 en distribuciones discretas e igual a 0 en distribuciones contínuas.
+
+* El Teorema Central del Límite establece que si se tiene una población con media μ y desviación estándar σ y se toman muestras aleatorias suficientemente grandes de la población con reemplazo, entonces la distribución de las medias de la muestra se distribuirá aproximadamente como una Distribución Normal.
+
+

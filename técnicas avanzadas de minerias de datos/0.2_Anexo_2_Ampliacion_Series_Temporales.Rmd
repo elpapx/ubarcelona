@@ -1,0 +1,340 @@
+
+---
+title: "Anexo 2: Ampliación Series Temporales"
+license:  by-nc-sa
+urlcolor: blue
+output:
+  html_document: 
+    theme:        cosmo 
+    highlight:    tango 
+    css: mystyle.css
+    toc:          true
+    toc_float:    true
+    code_folding: show
+  pdf_document:   default
+  epuRate::epurate:
+    toc:             TRUE
+    number_sections: FALSE
+    code_folding:    "show"
+  word_document:  
+    toc: yes
+    reference_docx: template_style.docx
+---
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+source("./Data/Functions.R")
+```
+
+## Series Temporales
+
+###Una Breve Introducción
+
+Las series temporales como hemos visto estudian el comportamiento de la propia serie basada en la historia. La historia se repite por lo que el futuro se parecerá al pasado. 
+
+Entendemos las series temporales como un proceso estocástico con T momentos. Cada momento "t" se comporta como una vriable aleatoria $Z_t$, donde:
+
+$$ Esperanza=E(Z_t)=\mu_t $$
+$$ Varianza=var(Z_t)=\sigma_t^2 $$
+$$ Covarianza=cov(Z_t,Z_{t+u})=E((Z_t-\mu_t)((Z_{t+u}-\mu_{t+u}))) $$
+
+Un proceso estocástico se considera **Estacionario** si tiene media y varianza constantes y la $Autocorrelación=\rho_u = cov(Z_t,Z_{t+u}) / \sigma_t\sigma_{t+u} $ solo dependa del desfase temporal u. La función de autocorrelación contiene la misma info que la función de autocovarianza, pero no depende de unidades de medida. Llamaremos **correlograma** al vector de la función de autocorrelación para distintos desfases ($\rho_1,\rho_2,\rho_3...$) y diremos que es significativo al 95% si la autocorrelación está por encima de $1.96/(T)^{0.5} $. A este vector lo llamaremos **Fnción de autocorrelación total**. **Podéis comprobar como realizando una serie aleatoria, su correlograma queda por debajo de este límite**. 
+
+Si tenemos un proceso estocástico tal que $Z_t= \bar Z +\epsilon_t   $, entonces estaríamos hablando de ruido blanco. La esperanza y varianza son constantes y la autocorrelación es igual que 0. A esto le llamamos **Ruido Blanco**. 
+
+Un "problema" con las series históricas es que solamente tenemos una medida por cada una de las variables aleatorias que componen la serie temporal. Esto hace que no podamos hacer inferencia utilizando distribuciones de densidad conjuntas, puesto que son desconocidas. La propiedad que hace que podamos realizar predicciones sin conocer dicha función de densidad conjunta es que se garantice que el proceso es **estacionario y ergódigo**. Un proceso es ergódico ocurre cuando el Límite cuando T -> Infinito de $E(\bar Z-\mu)^2 ->0$. Básicamente lo que te dice esta condición, es que la media muestral temporal nos conduce asintóticamente a la media poblacional. La condición suficiente para que ocurra esto es que la **autocorrelación tienda a cero a medida que se incrementa el retardo**. Esto se demuestra resolviendo la expresión $E(\bar Z-\mu)^2$.
+
+Como se ha visto en el tema, es importante tener en la cabeza las **transformaciones monótonas** para hacer que la serie sea estacionaria. Un **proceso integrado** será aquel en el que se toman "d" diferencias para obtener una nueva serie. 
+
+
+###Proceso Autorregresivo AR
+
+Un AR de orden p sería:
+
+$$Z_t=\beta_0+ \beta_1Z_{t-1} +....+\beta_pZ_{t-p}+\epsilon_t$$
+
+donde $\epsilon_t$ es ruido blanco y la estimación se realiza con MCO. 
+
+La **Función de autocorrelación** ayuda a decidir si el proceso de autocorrelación es un AR. Sin embargo no nos informa del orden del proceso. Para determinarlo deberíamos ir a la **Función de Autocorrelación Parcial FAP**. La autocorrelación parcial mide la influencia de la variable en (t-k) sobre la variable en (t) descontando la influencia de los (k-1) valores anteriores. De tal forma que nos quedará un vector tal que: $(\theta_1,\theta_2,\theta_3,...) $
+
+Para cacular los valores de la FAP, basicamente tendremos que ir calculando secuencialmente por MCO lo siguiente:
+
+$$ Z_t=\beta_0+ \beta_1Z_{t-1} \epsilon_t$$ 
+Donde $\beta_1$ será $\theta_{11}$  
+  
+.   
+.   
+.   
+
+$$ Z_t=\lambda_0+ \lambda_1Z_{t-1}+....+\lambda_pZ_{t-k}+\epsilon_t$$
+Donde $\lambda_{t-p}$ será $\theta_{kk}$
+
+La manera de determinar si son significativos será equivalente a como lo hacíamos con la FAT. 
+
+Una manera alternativa de calcular los valores de la FAP es a través de las ecuaciones de **Yule-Walker** con la función de autocorrelación total. De tal forma:   
+
+$$ \rho_u=\beta_1\rho_{u-1}+....+\beta_p\rho_{u-p}$$
+Las funciones de autocorrelación parcial se conseguirán de forma sucesiva aplicando las siguientes ecuaciones.
+
+$$
+\begin{equation}
+\begin{pmatrix}
+  \theta_{1}  \\
+  \theta_{2}  \\
+  \vdots    \\
+  \theta_{kk} 
+\end{pmatrix}
+
+=
+\begin{pmatrix}
+  \rho_{0} & \rho_{1} & \cdots & \rho_{k-1} \\
+  \rho_{1} & \rho_{0} & \cdots &\rho_{k-2} \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  \rho_{k-1} & \rho_{k-2} & \cdots & \rho_{0} 
+
+\end{pmatrix}^{-1}
+
+\begin{pmatrix}
+  \rho_{1}  \\
+  \rho_{2}  \\
+  \vdots    \\
+  \rho_{k} 
+\end{pmatrix}
+
+\end{equation}
+$$
+Siguiendo las ecuaciones, se puede comprobar como la FAP para órdenes superiores a la orden real del autorregresivo tomará un valor 0. 
+
+Volviendo al problema del **Proceso Autorregresivo** de orden p. La ecuación:
+
+$$AR(p)=Z_t=\beta_0+ \beta_1Z_{t-1} +....+\beta_pZ_{t-p}+\epsilon_t$$
+
+Se puede expresar utilizando lo que se denomina el **operador de retardos "B" **. En un modelo de desviaciones a las medias quedaría:
+
+$$z_t(1-B\beta_1-...-B^p\beta_p)=\epsilon_t$$
+El proceso es estacionario si B queda fuera del círculo de la unidad (Mayor a 1 o menor a -1). 
+
+
+###Proceso Media Móvil MA
+
+Un proceso estacionario de media móvil de orden q, obedece a la siguiente expresión.
+
+$$MA(q)=Z_t=c+\epsilon_t-\gamma_1\epsilon_{t-1}-\gamma_q\epsilon_{t-q}$$
+
+Los parámetros de este proceso no se pueden estimar por MCO puesto que la suma cuadrática de los residuos no son una función lineal de los parámetros a estimar. 
+Como se puede ver en la anterior expresión del **operador de retardos "B"**, el modelo puede convertirse en un proceso MA de orden infinito. Bastaría con invertir el proceso.
+
+$$z_t AR(B)=\epsilon_t$$
+$$z_t=AR(B)^{-1}\epsilon_t=(1-B\beta_1-...-B^p\beta_p)^{-1}\epsilon_t=MA(\inf)$$
+Esto nos quiere decir que los AR tienen memoria más larga que los MA. 
+
+El proceso MA será invertible solamente si B queda fuera del círculo de la unidad (Mayor a 1 o menor a -1). De tal forma que:
+
+$$MA(q)=Z_t=\epsilon_t(1-\gamma_1B-\gamma_qB^q)$$
+Evidentemente si invertimos este proceso nos va a dar lugar a un $AR(\inf)$.
+
+###Proceso ARMA
+
+Básicamente la conjunción de un AR y un MA.
+
+$$Z_t=\beta_1Z_{t-1} +....+\beta_pZ_{t-p}+\epsilon_t-\gamma_1\epsilon_{t-1}-\gamma_q\epsilon_{t-q}$$
+
+Utilizando el Operador de retardos quedaría
+
+$$z_t(1-B\beta_1-...-B^p\beta_p)=\epsilon_t(1-\gamma_1B-\gamma_qB^q)$$
+El proceso será invertible si la parte MA(B)=0 (parte de la derecha), B está fuera del círculo de la unidad. Y será estacionario si ocurre le mismo con las raíces de los retardos autorregresivos AR(B)=0  (parte de la izquierda).
+
+###Proceso ARIMA
+
+Un proceso ARIMA (p,d,q) es un **proceso integrado de orden d*(d)** qe combina una parte **autorregresiva de orden p** y una parte de **medias móvieles de orden q.**.
+
+###Proceso SARIMA
+
+Simplemente son modelos ARIMA estacionales. Es decir que dentro de un año hay información que puede modelizarse.
+
+En el caso de un SARIMA(1,1,1)(1,1,1)s, la expresión será:
+
+$$Z_t=c+\beta_1Z_{t-1}+\beta_2Z_{t-s} -\gamma_1\epsilon_{t-1}-\gamma_2\epsilon_{t-s}+\epsilon_t$$
+El proceso integrado (1,1) será realizando la siguiente operación con el **operador de retardos**:
+
+$$Z_t(1-B)(1-B^s)$$
+
+El proceso SARIMA sería el más complejo dentro de esta línea de modelos. También se puede incorporar otras variables retardadas al modelo, siempre que cumpla con las hipótesis básicas.
+
+- E(et/Yt-1,....Xt-1.....)=0
+- Las variables aletatorias contempladas son estacionarias.
+- A medida que incrementa el desfase temporal hace que la correlación disminuya.
+- No debe haber multicolinealidad perfecta. 
+
+###Proceso ARCH
+
+Quizás es poco realista considerar que los errores de los modelos de series temporales sean homocedásticos. Muchas series históricas presentan momentos de elevada y de baja volatilidad, dependiendo del tiempo que acontece o de las circunstancias alrededor. 
+
+Además de estar interesados en medir la media de un proceso, muchas veces también queremos medir su varianza. En concreto la varianza condicionada (depende de valores previos), es realmente importante para poder predecir la volatilidad a corto plazo. Si definimos un proceso AR, podemos comprobar facilmente que la varianza del error condicionada es mejor que la condicionada, por lo que la predicción condicionada es preferible.  
+
+Para que tenga sentido la modelización de la varianza del un proceso, la varanza del error de un modelo no debe ser constante. Podemos modelizar entonces el error cuadrático de un proceso ARMA por ejemplo:
+
+$$Z_t=\beta_0+\beta_1Z_{t-1} +\epsilon_t$$
+
+
+$$\epsilon_t^2=\alpha_0+\alpha_1\epsilon_{t-1}^2+...+\alpha_q\epsilon_{t-q}^2 +\eta_t$$
+A este modelo se le conocería como un modelo **Autorregresivo heterocedástico condicionado**. Por lo tanto si el proceso inicial de modelización nos proporciona errores distribuidos como una normal, entonces poco más podremos hacer con nuestro modelo, ya que habremos llegado a una modelización que satisface las hipótesis de las que partíamos para su resolución. Sin embargo tendría sentido cuando estos errores no siguen una distribución normal. 
+En el caso de que los errores de dicho modelo inicial sean ruido blanco, aun podrían permiir dependencia y habría que utilizar un esquema de perturbación multiplicativa, dando lugar al famoso modelo ARCH(1):
+
+$$\epsilon_t=\eta_t\sqrt{\alpha_0+\alpha_1\epsilon_{t-1}}$$
+De esta fórmula se puede extraer facilmente que la Esperanza y la Varianza no condicionadas, no cambian a lo que ya teníamos. Es decir, la Esperanza =0 y la Varianza=alpha0/(1-alpha1). Si calculamos la esperanza matemática condicionada de E(epsiont/epsilont-1,epsiont-2....), serguirá siendo 0. Sin embargo la Varianza condicionada ya no será constante, sino que será =alpha0+alpha1*epsión^2(t-1). 
+El proceso ARCH(q) será equivalente a lo expuesto pero con "q"" retardos del error. 
+
+###Proceso GARCH
+
+El proceso GARCH es una generalización de los vistos hasta el momento. En este proceso, el error toda la siguiente forma
+
+$$\epsilon_t=\eta_t\sqrt{h_t}$$
+
+$$ h_t=\alpha_0+\alpha_1\epsilon_{t-1}^2+...+\alpha_q\epsilon_{t-q}^2+\beta_1h_{t-1}+....+\beta_ph_{t-p}$$
+
+Esta ecuación se le conoce como **modelo GARCH (p,q)**. Evidentemente cuando p=0 entonces estaríamos hablando de un modelo ARCH. La característica clave del modelo GARCH es que la varianza condicionada de los residuos de Y_t se distribuyen como un proceso ARMA. 
+
+Entonces a modo de resumen:
+
+- En el caso homocedástico, Los residuos tienen media cero, varianza constante y la autocorrelacio entre los términos del error son cero.
+
+- Para un GARCH, la esperanza NO condicionada es cero. Y la Varianza NO condicionada será 
+
+$$E(\epsilon_t^2)=\alpha_0/(1-\alpha_1+...+\alpha_q+\beta_1+....+\beta_p)$$
+
+- Las autocorrelaciones del error independientemente del desfase en el modelo GARCH son igual a cero. Por lo tanto son independientes. 
+
+- La varianza condicionada será:
+
+$$E(\epsilon_t^2)=E(\eta_th_t)=h_t$$
+
+- Los errores de un proceso GARCH no están correlacionados. SIn embargo, los errores al cuadrado si que lo están. Los errores presentarán un patrón ARMA(p,q). Valores grandes de Alpha y Beta incrementan la volatilidad condicionada (varianza condicionada). 
+
+###Modelo ARCH-M
+
+Desde que surgieron estos modelos en los 80, han ido apareciendo modificaciones a los mismos que permiten realizar estimaciones más precisas sobre todo de la varianza condicionada.
+
+Los modelos **ARCH-M** permiten a la media de la serie temporal depender de su propia varianza condicionada. 
+
+$$Z_t=\beta+\delta h_t+\epsilon_t$$
+
+donde h es como siempre:
+
+$$h_t=\alpha_0+\alpha_1\epsilon_{t-1}^2+...+\alpha_q\epsilon_{t-q}^2$$
+
+Hay otro tipo de modificaciones que se hacen sobre h_t que dan lugar a otro tipo de modelos. **T-ARCH ** por ejemplo, añade una variable adicional en h_t. Esta variable tomará el valor 0 en el caso de que el error en t-1 fuese negativo y 1 en el caso de que fuese positivo. A esto se le conoce efecto apalancamiento. 
+
+###Modelos con Tendencias deterministas
+
+Muchas veces nos encontramos que las series temporales con las que trabaamos no son estacionarias. Los parámetros no son estables en el tiempo o la varianza de los errores no es constante. 
+
+La tendencia determinista consiste en modelizar el componente persistente mediate una función no aleatoria. 
+
+$$Y_t=f(t,\beta)+estacionario$$
+
+Por ejemplo podríamos considerar una parte determinista linea =beta*t y una parte estacionaria equivalente a un proceso AR(1).
+
+$$Y_t=\beta_0+\beta_1t+\rho Y_{t-1}+\epsilon_t$$
+
+###Modelos con Tendencias Estocástica
+
+Sin embargo el otro tipo de tendencia que se nos puede presentar es la tendencia estocástica. Ya no será una media constante en el tiempo la variación entre un periodo y otro. El cambio entre un periodo y otro es impredecible. 
+
+La manera de idetificar un proceso estocástico temporal es cuando encontramos raices unitarias del polinomio de retardos. Por ejemplo el **Paseo Aleatorio**
+
+$$Y_t=Y_{t-1}+\epsilon_t$$
+Si a esta última expresión le añadimos una constante estaríamos hablando de un **Paseo aleatorio con deriva**.
+
+
+Un caso clásico de modelo con Tendencia Estocástica sería el siguiente
+
+$$Y_t=X_{t}+\epsilon_t$$
+Siendo X_t
+
+$$X_t=X_{t-1}+\beta_0+\nu_t$$
+
+En un movimiento determinista, las desviaciones on respecto a la tendencia son puramente aleatorias y se corrigen rápidamente. En el caso de una tendencia estocástica, el componente aleatorio es mucho más persistente y se afecta al movimiento a largo plaz. 
+
+###Tendencia Estocástica vs Determinista. 
+
+Si el proceso real de una serie de datos en realidad procede de una tendencia estocástica (por ejemplo Paseo Aletorio con Deriva) y ajustamos con:
+
+1. Una tendencia Determinista -> Entonces obtendremos un Paseo Aleatoio como resultado.
+2. Con una tendencia Estocástica (Diff) -> Entonces obtendremos ruido blanco como resultado. 
+
+Si el proceso real de una serie de datos en realidad procede de una tendencia determinista y ajustamos con:
+
+1. Una tendencia determinista -> Entonces obtendremos ruido blanco como resultado. 
+2. Con una tendencia Estocástica (Diff) -> Entonces obtendremos unos residuos compatibles con un MA(1)
+
+Elegir bien el proceso es esencial para la realización de la senda de predicción y más importante aún para deterinar los intervalos de confianza previstos. 
+
+Recordad que un paseo aleatorio sería un ARIMA(0,1,0).
+
+###Relaciones Espurias
+
+Otro problema frecuente que nos encontramos es cuando comparamos procesos independientes de raices unitarias a través de una regresión lineal.
+
+$$Y_t=Y_{t-1}+\epsilon_t$$
+y
+
+$$X_t=X_{t-1}+\epsilon_t$$
+En principio estos dos procesos son independientes, por lo que regresionar Y sobre X en principio no debería dar ninguna significatividad. Sin embargo, Yule 1926 demostró que el estimador de esta regresión converge a una variable aleatoria y no a la constante. Dado que ambos procesos tienen una tendencia (aunque estocástica, es tendencia), entonces las tendencias dominarán el proceso y causará que el coeficiente de regresión de Xt sea significativo. A medida que crece el tamaño muestral , la probabilidad de aceptar la beta de Xt será 1. 
+
+El ejemplo habitual sería el de indicadores de gasto público en un país y su efecto en déficit económico en otro país. Si tomamos dos países con características similares, se podrá observar como hay una correlación clara entre el gasto público de un país y el déficit económico del otro país. Lo cual no tiene mucho sentido. Para evitar dicho efecto, una medida puede ser eliminar o introducir la tendencia determinista dentro de la regresión MCO, o la estrategia más clara que sería tomar los valores como diferencias y hacer las regresiones en función de las mismas. 
+
+###Dickey-Fuller
+
+Como hemos visto es fundamental saber si una serie es estacionaria o no lo es. Las conclusiones y modelos dependen de ello. Dickey-Fuller proponen un test para contrastar la estacionariedad para un proceso AR(1). Más adelante se generaliza con el **Contraste Aumentado de Dickey-Fuler** para cualquier modelo autorregresivo. 
+
+$$Y_t=\delta_1 Y_{t-1}+\delta_2 Y_{t-2}+...+\epsilon_t$$
+con 
+
+$$H0:\delta_1=0$$
+El estadístico ADF presentará un valor negativo. Se rechazará la hipótesis nula de raíz unitaria cuando el estadístico sera más negativo (menor) que la tabla DF. Estas tablas son propias del test. No se podrá comparar con las de cualquier otra distribución, sino que será la tabla propia del test DF. 
+
+###Modelo Autorregresivo de retardos distribuidos (ARD)
+
+Básicamente es un modelo que incorpora un efecto autorregresivo con p retardos y una parte con variables exógenas también retardadas temporalmente.
+
+$$Y_t=\delta_0+\delta_1 Y_{t-1}+\delta_2 Y_{t-2}+...+\phi_1 X_t+\phi_2 X_{t-1}+....+\epsilon_t$$
+
+
+En este tipo de modelos es importante que la X esté totalmente descorrelacionada con el error, por lo tanto que sea exógena totalmente. Ojo, tiene que ser exógena en el pasado, presente y futuro..... ¿Qué quiere decir esto?. Imaginad que queremos estimar la producción de tomates y utilizamos el clima y las semillas plantadas como variables exógenas. El clima sin duda va a ser exógeno, pero las semillas en el presente probablemente sea exógena, pero las semillas plantadas determinan la producción que a su vez determinan las semillas de n+1, por lo tanto ya no es una variable exógena, y queda desaconsejado este tipo de modelo ante tal casuística. 
+
+Además de esta condición, las variables se deben de hacer independientes a medida que incrementa el retardo, no debe haber multicolinealidad perfecta y todas las variables presentan distribuciones estacionarias. 
+
+Esta última ecuación mostrada puede hacerse más compleja si introducimos un cambio estructural por ejemplo. Una variable d que tome el valor de 0,1 en función de si en algún momento del tiempo se ha producido un cambio estructural que cambie las condiciones del juego o los efectos de unas variables sobre otras. 
+
+###Series Temporales Multiecuacionales
+
+Los modelos ARD son uy útiles en la práctica estadística pero presentan un problema. La condicioón de exogeneidad de las variables Explicativas y Explicada puede llegar a ser muy restrictiva y sin embargo ocurre muy frecuentemente. Surgen en la década de los 80 los **modelos VAR**. Son modelos multivariante que amplían el modelo AR. El VAR será un modelo formado por n ecuaciones. 
+
+$$X_t=\phi_1+\gamma_1 Y_{t-1}+\gamma_2 Y_{t-2}+\beta_1 X_{t-1}+\beta_2 X_{t-2}...+\epsilon_t$$
+$$Y_t=\phi_2+\delta_1 Y_{t-1}+\delta_2 Y_{t-2}+\alpha_1 X_{t-1}+\alpha_2 X_{t-2}...+\epsilon_t$$
+La estimación puede hacerse a través de MCO para cada una de las ecuaciones. 
+Los supuestos que establece cada ecuación son los mismos que los AR.
+Las condiciones de estacionariedad tendrán se evalúan con el determinante de |I-Matriz_Parametros*Retardos|, garantizándose la estacionariedad si los retardos están fuera del círculo de la unidad. 
+
+[The determinant](https://www.youtube.com/watch?v=Ip3X9LOh2dk)
+
+El tema se puede complicar aun más. Podemos introducir la variable contemporánea en el modelo, lo que hace que se convierta en un sistema dinámica interdependiente. 
+
+$$X_t=\phi_1+\gamma_0 Y_{t}+\gamma_1 Y_{t-1}+\gamma_2 Y_{t-2}+\beta_1 X_{t-1}+\beta_2 X_{t-2}...+\epsilon_t$$
+$$Y_t=\phi_2+\delta_1 Y_{t-1}+\delta_2 Y_{t-2}+\alpha_0 X_{t}+\alpha_1 X_{t-1}+\alpha_2 X_{t-2}...+\epsilon_t$$
+
+Esto no podría realizarse por MCO puesto que no hay exogeneidad. Además el número de parámetros resulta demasiado elevado como para resolver el sistema de ecuaciones. En este caso se resuelve el sistema eliminando (juicio experto) uno de los parámetros, de tal forma que si que podamos realizar la estimación
+
+
+Preguntas:
+
+- Si por ejemplo tenemos una serie temporal de números sacados al azar entre el 1 y el 10. Cada vez que el número es par y mayor que 6 entonces la siguiente extracción vale doble. **Razonar si es estacionaria la serie**
+
+- ¿Cómo es la esperanza y varianza de un paseo aleatorio? Y(t)=Y(t-1)+e(t) ¿Y la función de autocorrelación?.
+
+- En un proceso con tendencia determinista + AR(1), **Cómo será E(Yt+s)**
+
+- Compara el Cambio de Y en un modelo con Tendencia Estocástica y uno con Tendencia Determinista. (Y_t)-(Y_t-1).
+
+- Esperanza matemática de un paseo aleatorio con deriva. ¿Qué ocurre si le restamos la tendencia determinista?. 
+

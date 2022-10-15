@@ -1,0 +1,690 @@
+
+---
+title: "Técnicas Avanzadas de Predicción Modelos de Regresión Lineal"
+license:  by-nc-sa
+urlcolor: blue
+output:
+  word_document:  
+    toc: yes
+    reference_docx: template_style.docx
+  html_document: 
+    theme:        cosmo 
+    highlight:    tango 
+    css: mystyle.css
+    toc:          true
+    toc_float:    true
+    code_folding: show
+  epuRate::epurate:
+    toc:             TRUE
+    number_sections: FALSE
+    code_folding:    "show"
+  pdf_document:   default
+---
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+source("./Data/Functions.R")
+load(file='t1.RData')
+```
+
+
+<center>
+![fig_ini](./figures/fig_ini.jpg){width=50%}
+<center>
+Fuente de la Imagen: [https://es.wikipedia.org/wiki/Star_Wars:_Episodio_V_-_El_Imperio_contraataca](https://es.wikipedia.org/wiki/Star_Wars:_Episodio_V_-_El_Imperio_contraataca)   
+  
+  
+**Objetivos Específicos**   
+  
+* Identificar los pasos necesarios para la realización de una modelización estadística. 
+* Conocer los diferentes métodos de resolución de los modelos lineales.
+* Aprender a saber determinar cuándo un modelo estadístico puede darse por bueno. Conocer los controles más habituales sobre los resultados de nuestro modelo.
+*  Ser capaces de poder comparar con rigor diferentes modelos estadísticos. Elección del método por el que optimizar la elección del modelo.
+
+
+# 5.2 Modelos de Regresión Lineal
+  
+El objeto de todos los modelos estadísticos que vamos a ver a lo largo del tema consiste en:
+
+1. **Especificar un modelo**
+2. **Estimación del modelo**
+3. **La mejor especificación**
+4. **La súper mejor especificación**
+5. **Validación del modelo**
+
+## 5.2.1 Especificación del modelo
+
+**Especificar un modelo**: Nuestro objetivo es definir la relación entre unas variables (Explicativas) y una variable (Explicada) a través de unas ecuaciones y unos parámetros. Podremos utilizar este modelo para explicar un comportamiento ya sucedido, o para predecir un comportamiento en el futuro.  
+  
+Predictores: Nuestras variables explicativas. (EDAD,ANTIGUEDAD,INGRESOS...)
+$$ Predictores -> X=(X_1,X_2,...,X_p) $$
+  
+Respuesta: Nuestra variable a explicar. (COMPRAS)
+$$ Respuesta -> Y $$
+  
+Parámetros: Coeficientes que expresan la influencia de las variables explicativas sobre la Respuesta. Son los coeficientes desconocidos que tendremos que estimar. 
+$$ Parámetros -> \beta=(\beta_1,\beta_2,...,\beta_p) $$
+Donde p es el número de variables que tenemos para explicar Y.
+  
+Ecuación: La relación matemática. 
+$$ Ecuación -> (Y)_{nx1}\approx\hat{(Y)}_{nx1}= (X)_{nxp}(\beta)_{px1} $$
+Donde n es el número de datos que tenemos y $\hat{(Y)}$ es Y estimada. 
+
+O lo que es lo mismo:  
+$$ Ecuación -> y_i \approx \hat{y_i} = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + \cdots + \beta_k x_{pki} $$
+Donde i es la observación i-ésima.  
+
+**¿Qué es el $\beta_0$ ?**  
+
+Es un parámetro que afecta a todos los registros por igual. $\beta_0$ está multiplicando a un vector de unos (1). Es decir, en nuestro modelo lineal es un valor de origen para todas las observaciones de la base de datos.  
+
+  
+<piensa un minuto>  
+
+**¡OJO! ¿Por qué ponemos $$\approx$$ en lugar de = en la ecuación?**  
+
+<piensa un minuto>  
+
+
+1. Porque las betas $\beta$ nos van a dar una aproximación a la realidad. 
+2. Si las estimamos bien, serán la mejor aproximación a la realidad posible con la información disponible.
+3. Pero **SIEMPRE SIEMPRE** va a haber un término que va a ser el error / perturbación. 
+4. El error es lo que nos equivocamos al predecir.
+
+$$ Error -> e_i = y_i - \hat{y_i} = y_i - (\beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + \cdots + \beta_k x_{pki}) $$
+  
+Entonces, la suma de errores al cuadrado, nos dirá como de bueno es nuestro modelo. 
+
+$$ Suma Residual-> SR=\sum_{i=1}^n e_i^2=\sum_{i=1}^n(y_i - \hat{y_i})^2  $$
+  
+< piensa un minuto >  
+
+**¿Puede que no haya error en nuestro modelo?**   
+  
+< /piensa un minuto >  
+  
+NO. Siempre hay algo de error.  Siempre debe de haber algo de error. 
+Si no tienes error, entonces:
+* Tu modelo está sobre-estimado.
+* Valdrá para explicar pero no para predecir.
+* No aporta nada adicional a los datos brutos que teníamos en un primer momento.
+
+<center>
+![fig5.0.6](./figures/fig_5.0.6.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.towardsdatascience.com](https://towardsdatascience.com/underfitting-and-overfitting-in-machine-learning-and-how-to-deal-with-it-6fe4a8a49dbf)  
+  
+Con esto ya podemos especificar el modelo para predecir el comportamiento de los clientes.
+
+```{r }
+# Establecemos la formula para  más adelate modelizar. 
+formula<-as.formula('COMPRAS~EDAD+ANTIGUEDAD+GENERO+INGRESOS+Dist_Min')
+formula
+```
+
+**¿Por qué no otra especificación?**   
+
+Primero vamos a ver cómo se estiman los parámetros de nuestro modelo y una vez lo tengamos generado, vamos a ver los análisis correspondientes para encontrar la mejor especificación. Pero de momento vamos a empezar con esta. Razones: Por nuestra intuición, por nuestro conocimiento de negocio y por los análisis previos hechos. 
+
+
+## 5.2.2 Estimación de los parámetros
+
+El objetivo de la sección es suministrar métodos que permitan determinar el valor de los parámetros de un modelo con precisión.
+
+< recuerda >  
+
+Recordamos que estamos trabajando con muestras y nuestro objetivo es conocer el parámetro poblacional con el estimador muestral. De nada nos vale conocer el estimador para una muestra concreta, pero que falle para nuevas muestras poblacionales.   
+
+< /recuerda >  
+
+**Objetivo**: Realizar una estimación de la función de regresión poblacional dada una muestra determinada.   
+  
+<center>
+![fig5.0.7](./figures/fig_5.0.7.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.goconqr.com](https://www.goconqr.com/en/p/20844639)  
+  
+**Volvemos al origen. ¿Qué es un modelo?**   
+
+Un modelo, ahora que sabemos de lo que estamos hablando, lo definimos como un cojunto de restricciones sobre la distribución conjunta de las variables para obtener relaciones entre las mismas.      
+Importantísimo centrarse en los supuestos sobre los que se construye un modelo estadístico.  
+
+**¿Bajo qué supuestos basamos nuestro modelo lineal?**  
+
+1 Asumimos que hay una relación lineal entre las variables explicativas y nuestra variable explicada.
+2 No puede haber colinealidad perfecta entre nuestras variables explicativas. Puesto que hará que el problema no pueda resolverse. 
+3 Asumimos que la muestra es independiente, por lo tanto que no hay relación entre los registros de nuestra variable respuesta. 
+4 Asumimos también que no hay relación entre los errores de mi modelo y las variables explicativas.
+
+Nuestros estimadores serán:
+
+* Será **insesgado** o centrado si la esperanza del estimador es igual al valor del parámetro real. Se cumplirá siempre que se cumpla la condición 4 anteriormente mencionada. Esto quiere decir que el beta estimado con nuestra muestra sea equivalente al beta poblacional (real), es decir, no contenga otros efectos por detrás. Evidentemente, dependiendo del fenómeno que estemos viviendo, será más complicado poder tener betas insesgados, es decir que cada beta tenga su valor real y no haya solapamientos de nuestra beta con otra beta de alguna variable desconocida.  
+Podéis pensar que cuanto mayor varianza de la endógena explique nuestro estimador, será mejor. Esto es cierto en términos de la suma cuadrada de errores. Sin embargo, un aspecto importante que remarcan estos modelos es la interpretabilidad y la capacidad para generar escenarios. Si nuestro modelo contiene betas sesgadas, independientemente de la predicción, podremos valorar los efectos marginales que producirá mover/actuar sobre una variable exógena, pero no se trasladará tal y como diríamos en el modelo, puesto que hay sesgo producido por otras variables no incluidas sobre las que no sabemos que tenemos que mover/actuar. 
+
+$$ E[\hat{\beta}]=\beta $$
+
+* Será **consistente** si al incrementar el tamaño muestral, el estimador se aproxima al valor del parparámetro real. Se cumplirá si se cumplen las cuatro condiciones de arriba. A medida que crece mi tamaño muestral, es lógico que mi estimador converja a su parámetro real. 
+
+* Además, si hay homocedasticidad (varianza constante de los residuos) y no hay autocorrelación (dependencia entre los residuos). Podemos decir que los estimadores son eficientes y óptimos. 
+  
+
+##### **Método de los Mínimos Cuadrados Ordinarios** 
+
+Consiste básicamente en minimizar la suma de cuadrados de los residuos SR.
+
+$$ \begin{align}
+SR=e^te=(Y-X\beta)^t(Y-X\beta)=Y^tY-2\beta^t X^tY+\beta X^t X \beta \\
+\frac{\partial SR}{\partial \beta}=-2X^tY+2X^tX\beta=0 \\
+\beta=(X^tX)^{-1}X^tY \\
+ \\
+Siendo: \\
+Var(\beta)=\sigma_u^2(X^tX)^{-1} \\
+ \\
+Donde: \\
+\sigma_u^2=\frac{e^te}{n-p} \\
+\end{align} $$
+
+Siempre asumiendo que los residuos se distribuyen como una normal, que el error y las variables explicativas son independientes, y que los residuos son homocedásticos. En el caso de que alguno de estos supuestos no fuese verdadero, entonces la varianza de la beta no sería la anterior. 
+
+**¿Qué pasas si no se cumple la condición 4?**  
+
+$$  
+E(\hat{\beta}/X)=E((X^tX)^{-1}X^t(X\beta+e)/X)=E(\beta+(X^tX)^{-1}X^te/X)=\beta+(X^tX)^{-1}X^tE(e/X)
+$$
+Como podemos ver en la ecuación (en la que no he desarrollado todos los pasos para despejar la ecuación), si E(e/X) no es igual a 0 entonces la estimación de beta no sería igual a la beta real, por lo tanto podríamos decir que el estimador no es insesgado. Por lo que no sería eficiente. De aquí ue ea tan importante las hipótesis iniciales sobre el modelo y verificar que dichas hipótesis se cumplen, de otra forma, los estimadores y por lo tanto conclusiones de nuestro modelo no serían las más eficientes. 
+
+
+En todo este proceso como podéis ver, si incluimos un parámetro más (una variable nueva) dentro de nuestra ecuación (especificación), dado que nos encontramos ante un problema multidimensional, todas las betas se recalcularán.  
+  
+Primero lo hacemos a mano(Multiplicando Matrices). Estimación de las betas de nuestro modelo:
+```{r }
+X<-as.matrix(cbind(Intercept=rep(1,nrow(tabla)),dplyr::select(tabla,EDAD,ANTIGUEDAD,GENERO,INGRESOS,Dist_Min)))
+Y<-as.matrix(tabla$COMPRAS)
+
+betas_a_mano<-as.numeric(solve(t(X)%*%X)%*%(t(X)%*%Y))
+dt_a_mano<-diag(as.numeric((t(Y-X%*%betas_a_mano)%*%(Y-X%*%betas_a_mano))/(nrow(X)-ncol(X)))*solve(t(X)%*%X))**0.5
+tvalue_a_mano<-betas_a_mano/dt_a_mano
+
+tab<-as.data.frame(cbind(betas_a_mano,dt_a_mano,tvalue_a_mano))
+pander(tab, split.cell = 80, split.table = Inf)
+```
+
+Y Ahora utilizando la función de R lm (Utilizando Lineal Model)
+```{r warning=FALSE,message=FALSE}
+modelo1<-lm(formula = formula,data =tabla)
+pander(summary(modelo1))
+```
+
+**¿Cómo interpretamos las betas?**  
+
+< recuerda >  
+
+Básicamente nuestra estimación sobre la variable respuesta (COMPRAS) va a ser igual a la suma de cada variable explicativa por su beta correspondiente. Cuando es positiva, un incremento en la variable incrementa las COMPRAS. Cuando es negativa, un incremento en la variable decrementa las COMPRAS.  
+
+< /recuerda >  
+
+$$ \hat{Compras}=1\beta_1+Edad\beta_2+Antiguedad\beta_3+...+Dist.Min\beta_6 $$
+
+Lo que obtenemos con esta expresión es la estimación de las compras que va a hacer el cliente dadas unas características (variables explicativas). Esta estimación es la esperanza matemática condicionada a las variables explicativas. Por lo tanto, es una variable aleatoria cuya esperanza es el valor que estamos obteniendo.  
+
+Por decirlo de otra forma, lo que estamos obteniendo es un valor centrado de las compras que va a hacer el cliente más posiblemente. Pero una cosa que nos permiten este tipo de modelos lineales es establecer intervalos de confianza (horquillas) entre los cuales es más probable que se mueva el precio.  
+
+Por ejemplo, de nada serviría que nuestro modelo de predicción nos diese un cierto nivel de compras, si el intervalo de confianza para el 90% de los casos fuese amplísimo, puesto que tendríamos un modelo con una predicción, pero con mucha inexactitud. Entonces, ¿cómo calculamos intervalos de confianza? Una parte importante es el t-value.
+
+**¿Cómo interpretamos el t value?**  
+
+Es la medida que nos dice cuántas desviaciones estandard nuestra beta está alejada de 0 y por lo tanto, tiene sentido tener dicha variable dentro del modelo.  
+
+El t value es el cociente entre la beta y el error estándar de dicha beta. Esto se distribuye como una t de student con (p-k+1) grados de libertad. El valor de dicho estadístico va asociado a la probabilidad de que dicho valor sea distinto de cero, y por lo tanto sea significativo.  
+En el caso de que quisiésemos valorar si dos variables tienen la misma beta, tendríamos dos opciones. La primera sería ejecutar un nuevo contraste de hipótesis con la diferencia de las betas y su error estándar Y la segunda opción, y la que yo os recomiendo, es realizar un nuevo modelo con la suma de ambas variables. Si el cociente de esta nueva variable (fruto de la suma de las dos anteriores a contrastar) es significativo, entonces podemos rechazar la hipótesis nula de que ambas variables tengan la misma beta.  
+Jugando con este estadístico podemos hacer todas las comprobaciones de significatividad y controles sobre las betas que deseemos.  
+
+**¿Cómo sacamos intervalos de confianza?**
+
+Primero vamos a sacar la predicción para una persona de 30 años, 1 año de antiguedad, género 0, 2400 euros mensuales y distancia mínima de 7.
+
+```{r warning=FALSE,message=FALSE}
+individuo<-as.matrix(c(1,30,1,0,2400,7))
+t(as.matrix(modelo1$coefficients))%*%individuo
+```
+
+Las compras estimadas son 644 euros.  Pero como hemos visto esta es una estimación central de la esperanza matemática de la variable compras dadas unas condiciones o unos factores explicativos. Necesitamos saber alrededor de qué valor estamos hablando para poder tomar decisiones. O lo que es lo mismo, tenemos que preguntarnos, cómo de cierto es ese valor. ¿El cliente que hemos identificado va a hacer este gasto exactamente? O va a realizar este gasto más o menos, 100 euros arriba, 100 euros abajo. 
+
+Ahora vamos a ver el intervalo de confianza al 95% de esos 644 euros. 
+
+```{r warning=FALSE,message=FALSE}
+bbdd<-cbind(tabla$EDAD,tabla$ANTIGUEDAD,tabla$GENERO,tabla$INGRESOS,tabla$Dist_Min)
+SCR<-sum((tabla$COMPRAS-t(as.matrix(modelo1$coefficients))%*%t(as.matrix(cbind(1,bbdd))))**2)
+
+bbdd2<-dplyr::select(tabla,COMPRAS,EDAD,ANTIGUEDAD,GENERO,INGRESOS,Dist_Min)
+bbdd2$EDAD<-bbdd2$EDAD-30
+bbdd2$ANTIGUEDAD<-bbdd2$ANTIGUEDAD-1
+bbdd2$GENERO<-bbdd2$GENERO-0
+bbdd2$INGRESOS<-bbdd2$INGRESOS-2400
+bbdd2$Dist_Min<-bbdd2$Dist_Min-7
+
+modelo_t<-lm(formula = formula,data =bbdd2)
+standard_error<-summary(modelo_t)$coef[,2][1]
+
+t(as.matrix(modelo1$coefficients))%*%individuo+2*(standard_error**2+(SCR/(nrow(tabla)-5)))**0.5
+t(as.matrix(modelo1$coefficients))%*%individuo-2*(standard_error**2+(SCR/(nrow(tabla)-5)))**0.5
+```
+
+Ahora creo que nuestro modelo es mucho más potente. Ahora sabemos que en el 95% de las ocasiones, este cliente nos va a gastar entre 513 y 776 euros. Lo cual significa que nuestras decisiones para tomar acciones con este tipo de clientes tendrán que estar basadas en este último cálculo. Siendo suficientemente prudentes, podríamos coger el intervalo inferior del intervalo de confianza y por lo tanto solo arriesgaríamos un 5% que este valor no se cumpliese.  
+Por el TCL explicado en capítulos pasados, cuantos más clientes de este tipo tengamos la media de sus compras se va a aproximar a los 644 euros calculados, y en el 95% de los casos se moverán sus compras entre estos niveles establecidos. 
+
+**¿Alguna forma de saber si el modelo entero es significativo?**
+
+La idea es generar una nueva hipótesis, en la que contrastemos como hipótesis nula si todas las betas conjuntamente son iguales a cero. 
+
+$$ \frac{\frac{\sum{(\hat{Y}-\overline{Y})^2}}{p}}{\frac{(Y-\hat{Y})^2}{n-p-1}} \sim F_{p,n-k-1} $$
+Este es otro estadístico que en esta ocasión se distribuirá como una F de Snedecor. Si el valor del estadístico es superior al que marca la distribución, entonces rechazaremos de que las betas de nuestro modelo son iguales que cero, por lo tanto nuestro modelo tendrá validez. 
+
+< sabías que >
+
+No hay un único método de estimación de parámetros de una regresión. Entre los más utilizados están el método de los mínimos cuadrados, el método de los momentos y el método de la máxima verosimilitud. Cada uno de ellos llega a unas conclusiones de cómo estimar los coeficientes y dependiendo del método las propiedades de los estimadores teóricos cambian. 
+
+< /sabías que >
+
+##### **Método de Máxima Verosimilitud** 
+
+El método de máxima verosimilitud es otro método de estimación. Se basa en el supuesto del tipo de distribución que sigue el término del error del modelo estadístico. Y a partir de ahí vamos a buscar los parámetros que hacen más probable que dichos residuos provengan de esa distribución. 
+
+$$ \begin{align}
+f(u)=\frac{1}{(2\pi\sigma^2)^{0.5}}e^{-\frac{e^te}{2\sigma^2}} \\
+L=\frac{1}{(2\pi\sigma^2)^{\frac{n}{2}}}e^{-\frac{(Y-X\beta)^t(Y-X\beta)}{2\sigma^2}} \\
+ln(L)=-\frac{nln(2\pi)}{2}-\frac{nln(2\sigma^2)}{2}-\frac{(Y-X\beta)^t(Y-X\beta)}{2\sigma^2} \\
+\frac{\partial Ln(L)}{\partial \beta}=-\frac{-2X^t(Y-X\beta)}{2\sigma^2}=0  \\
+\\
+Siendo: \\
+Var(\beta)=\sigma_e^2(X^tX)^{-1} \\
+ \\
+Donde: \\
+\sigma_e^2=\frac{e^te}{n} \\
+\end{align} $$
+
+
+**La ecuación revela que, bajo el supuesto de normalidad del término del error, el estimador es equivalente al obtenido con el método de mínimos cuadrados ordinarios, sin embargo, la varianza del estimador difiere ligeramente y solo coinciden cuando n es suficientemente grande**
+  
+En el próximo capítulo nos meteremos más a fondo en los GLM. De momento solamente para observar las diferencias con respecto a LM, os pongo los resultados que nos daría utilizando la función GLM que resuelve el problema de la máxima verosimilitud con el método numérico de: Iterative Weighted least squares.  
+
+Podéis encontrar todo el desarrollo para calibrar la ecuación por máxima verosimilitud en el siguiente link que corresponde al libro de "A primer for spatial econometrics". Concretamente en el primer capítulo de modelos econométricos clásicos.  
+
+[https://books.google.es/books](https://books.google.es/books?id=BVeoBAAAQBAJ&printsec=frontcover&hl=es&source=gbs_ge_summary_r&cad=0#v=onepage&q&f=false) 
+
+
+```{r }
+# Utilizando glm
+modelo2<-glm(formula = formula,data =tabla,family=gaussian)
+pander(summary(modelo2))
+```
+  
+## 5.2.3 La mejor especificación
+
+Como decíamos antes, hemos empezado con una especificación particular a criterio totalmente nuestro. ¿Era esta "fórmula" nuestra mejor especificación?  
+
+< importante >  
+
+Es muy importante el conocimiento de negocio, de los datos y del sentido que le queremos dar al modelo; **sin embargo**, permitidme dudar que, a la primera, consigamos tener la mejor especificación del modelo.  
+
+< /importante >  
+
+```{r }
+#Especificación Inicial
+formula
+#Variables que podemos incluir en el modelo
+colnames(tabla)
+```
+
+**¿Hay alguna técnica que nos ayude a identificar la mejor especificación?**  
+  
+Sí. Hay un conjunto de técnicas que nos ayudan a escoger un subconjunto reducido de las "p" variables que teníamos al comenzar nuestro estudio.
+  
+Primero y fundamental, saber los indicadores más habituales para comparar modelos. Estos indicadores ofrecen una métrica de cómo es el grado de ajuste del modelo dadas un número de variables explicativas dentro de él. 
+
+1. AIC (Akaike Information Criteria): 
+
+$$ AIC=\frac{SR+2p\sigma^2}{n\sigma^2} $$
+Cuanto menor sea, mejor será el ajuste de nuestro modelo. Fijaros que penaliza tanto la suma de residuos al cuadrado como el número de variables que estamos utilizando.
+
+2. BIC (Bayesian Information Criteria): 
+
+$$ BIC=\frac{SR+p\sigma^2ln(n)}{n} $$
+Cuanto menor sea, mejor será el ajuste de nuestro modelo. Igualmente penaliza tanto la suma de residuos al cuadrado como el número de variables que estamos utilizando.
+
+3. R Cuadrado Ajustado/Corregido (Coeficiente de determinación):
+
+$$\begin{align}
+R^2_a=1-\frac{\frac{SR}{n-p-1}}{\frac{(Y-\bar{Y})^t(Y-\bar{Y})}{n-1}} \\
+\\
+Donde:\\
+\bar{Y}=\frac{\sum(Y)}{n} 
+\end{align} $$
+
+
+Cuanto mayor sea, mejor será el ajuste de nuestro modelo. Nuevamente que penaliza tanto la suma de residuos al cuadrado como el número de variables que estamos utilizando.
+
+**Método de selección Stepwise**  
+  
+El método consiste en probar distintas combinaciones de variables. Para ello utilizamos dos métodos:
+
+* **Método Forward**: Empezamos por un modelo sin variables y vamos añadiendo una en cada paso del método. Al finalizar el bucle el algoritmo elige el mejor modelo basado en lo que nosotros queramos (BIC/AIC/R).
+  
+* **Método Backward**: Empezamos por un modelo con todas las variables y vamos quitando una en cada paso del método. Al finalizar el bucle el algoritmo elige el mejor modelo basado en lo que nosotros queramos (BIC/AIC/R).
+  
+Aquí os lo explico paso a paso.  
+
+<center>
+![fig5.0.8](./figures/fig_5.0.8.jpg){width=100%}
+<center>
+Fuente de la Imagen: [Elaboración Propia]
+
+  
+Para los más perfeccionistas, también hay métodos que calculan el mejor modelo comparando todas las combinaciones de modelos posibles. El problema es el consumo computacional que requiere esto. También hay propuestas híbridas entre forward y backward en la que cuando se añaden nuevas variables al modelo, también se eliminan basándose en p-valores de las variables.
+  
+Vamos a utilizar la función StepAIC con nuestro ejemplo para ver la especificación que nos recomendaría. Para ello tenemos que darle a la función, el modelo completo/vacío + todas las variables para que la función contenga todas las variables explicativas que queremos testar. El algoritmo va a tomar decisiones siempre en base al AIC del modelo.
+
+```{r }
+formula_completa<-as.formula('COMPRAS~EDAD+ANTIGUEDAD+GENERO+INGRESOS+Dist_Min+Dens+Dist_Min_h+Dens_h+Log_Ing')
+modelo_completo<-glm(formula =formula_completa ,data =tabla,family=gaussian)
+modelo_vacio<-glm(formula =COMPRAS~1 ,data =tabla,family=gaussian)
+```
+
+Primero realizamos backward. Nos sugiere eliminar la variable INGRESOS y sustituirla por el LOG_INGRESOS y además eliminar la variable densidad de supermercados y Distancia mínima a un hospital. 
+  
+```{r }
+backward<-stepAIC(modelo_completo,trace=FALSE,direction="backward")
+backward$anova
+```
+
+Segundo realizamos forward. Nos sugiere quedarnos con exactamente la misma especificación.
+  
+```{r }
+forward<-stepAIC(modelo_vacio,trace=FALSE,direction="forward",scope=formula_completa)
+forward$anova
+```
+
+Por último, aunque ya no haría falta, vamos a probar el modelo híbrido. 
+
+```{r }
+both<-stepAIC(modelo_vacio,trace=FALSE,direction="both",scope=formula_completa)
+both$anova
+```
+  
+Este tipo de algoritmos de decisión en la selección de las variables son my útiles en la práctica. No solamente para encontrar la mejor especificación de nuestro modelo, sino para quitarnos mucho trabajo a la hora de ver que variables entrar en el modelo final. En nuestra base de datos, contamos con 10 variables. Hacer el análisis es sencillo relativamente. Cuando el problema de dimensionalidad crece, por ejemplo en bases de datos de más de 500 variables, es muy útil un simplificador en el camino que nos diga donde centrarnos y sobre todo qué descartar de antemano para no invertir recursos innecesarios. 
+
+<center>
+![fig5.0.9](./figures/fig_5.0.9.jpg){width=100%}
+<center>
+Fuente de la Imagen: [https://bit.ly/33MLZ0Y](https://bit.ly/33MLZ0Y) 
+
+Establecemos la fórmula para más adelante modelizar. 
+  
+```{r }
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD + GENERO + Log_Ing + Dens_h')
+# Utilizando glm
+modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+pander(summary(modelo_final))
+```
+
+**Hemos dado un gran paso para conocer el comportamiento de nuestros clientes.**  
+**Aún queda trabajo por hacer..... **   
+ 
+   
+## 5.2.4 La súper mejor especificación  
+  
+**Ojo**, hasta ahora hemos contemplado el mejor modelo lineal. Las mejores betas proporcionales para cada una de nuestras variables para predecir las COMPRAS. Problemas:
+
+(*conversaciones conmigo mismo*)
+
+**Pregunta**: ¿Es la vida lineal?  
+  
+**Respuesta**: Creo que no..... No tiene mucho sentido pensar que el cambio en comportamiento de una persona que tiene 20 y pasa a tener 30 es igual que el de una persona que tiene 60 y pasa a tener 70.  
+    
+**Pregunta**: ¿Podemos contemplar efectos no lineales en una regresión lineal?.  
+  
+**Respuesta**: Hay muchas maneras de contemplar no-linealidades a través de un modelo lineal.
+
+Aquí algunos ejemplos:  
+
+1. Añadiendo una variable control y metiéndola (añadiéndola) en el modelo. 
+
+$$ \begin{align}
+if.Edad>30.then.Nueva.Variable=1; \\
+else.Nueva.Variable=0;
+\end{align} $$
+
+2. Añadiendo una variable modificada no linealmente y metiéndola  (añadiéndola)  en el modelo. 
+    
+$$ \begin{align}
+Nueva.Variable=Edad^2;
+\end{align} $$
+  
+3. Contemplando diferentes pendientes (betas) para una misma variable. Para ello vamos a utilizar el paquete earth. 
+
+  
+**¿Que hace el paquete earth?**  
+
+Desarrolla la idea de "Multivariate adaptive regression splines (MARS)". Capturamos relaciones no lineales en los datos estableciendo puntos de corte. Los puntos de corte que nos dice MARS, es donde la beta cambia para una misma variable. 
+Lo implementamos en R y a continuación os lo explico:
+
+```{r }
+modelo_final<-earth(formula = formula,data =tabla,thresh=0.1)
+summary(modelo_final)
+```
+  
+El paquete nos está encontrando varias no-linealidades. Tenemos dos opciones. 
+
+1. Emplear el modelo que nos da earth tal cual.  
+2. Utilizar las no linealidades para seguir manejando nuestro modelo.  
+
+  
+**¿Pero qué está haciendo el paquete earth?**   
+
+Está desmigando cada variable y partiéndola en varios trozos para ver si cada uno de los trozos de la variable explican de forma diferente y significativamente.
+
+< importante >  
+
+**Sobre todo y muy importante. Nos fijamos en aquellas variables cuyo coeficiente tiene el mismo signo**  
+  
+< /importante >  
+
+* **Mismo signo**: La beta cambia de tener pendiente positiva a negativa.
+* **Distinto signo**: La beta pasa a ser más suave o más agresiva, pero con el mismo signo.  
+  
+$$ \begin{align}
+     \text{Dist_Min} = 
+  \beta(2.6 - \text{x}) & \text{x} < 2.6, \\
+    \beta(\text{x} - 2.6) & \text{x} > 2.6
+  \\
+     \text{Edad} = 
+  \beta(57 - \text{x}) & \text{x} < 57, \\
+    \beta(\text{x} - 57) & \text{x} > 57
+ \end{align} $$
+  
+**La $$\beta$$ únicamente cambian de signo con la EDAD, por lo tanto voy a llevar dicho cambio a mi modelo**
+
+```{r }
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD + GENERO + Log_Ing + Dens_h')
+modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+
+tabla$EDAD_hasta_57<-((57-tabla$EDAD)<0)*0+((57-tabla$EDAD)>=0)*(57-tabla$EDAD)
+tabla$EDAD_despues_57<-((tabla$EDAD-57)<0)*0+((tabla$EDAD-57)>=0)*(tabla$EDAD-57)
+
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD_hasta_57 + EDAD_despues_57 + GENERO + Log_Ing + Dens_h')
+nuevo_modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+pander(summary(nuevo_modelo_final))
+```
+
+**¿Es mejor este nuevo modelo?**   
+
+Vamos a comprobarlo con nuestro AIC. ¿Es menor el AIC conseguido en nuestro nuevo modelo más sofisticado?
+
+```{r }
+if (AIC(nuevo_modelo_final)<AIC(modelo_final)){
+  print("El nuevo modelo mejora el ajuste")
+} else {
+  print("El nuevo modelo no mejora el ajuste")
+}
+```
+
+**¿Podemos visualizar lo que estamos haciendo por favor?**   
+
+Vamos a utilizar otra vez nuestra función **Hist** que anteriormente nos funcionaba para ver estructuras de datos. Ahora la vamos a utilizar para ver grado de ajuste de nuestros datos. En concreto de nuestra variable EDAD. 
+
+```{r fig.width = 5}
+tabla1<-dplyr::select(tabla,-LONG,-LAT)
+Hist(tabla1,response = tabla1[,1],predicted = predict(modelo_final,tabla1),var = tabla1[,2],n=2,breaks = 10)
+Hist(tabla1,response = tabla1[,1],predicted = predict(nuevo_modelo_final,tabla1),var = tabla1[,2],n=2,breaks = 10)
+```
+  
+Arriba el anterior ajuste. Compras Reales por Edad vs Compras Estimadas por Edad. A bajo el nuevo ajuste.
+
+Parece que nos convence nuestro modelo. Hasta ahora hemos:
+
+1. Depurado nuestra base de datos
+2. Alimentado con nuevas variables nuestra tabla
+3. Elegido con un método de selección de variables nuestros mejores factores
+4. Desmigado no-linealidades. 
+
+<center>
+![fig5.1.1](./figures/fig_5.1.1.jpg){width=100%}
+<center>
+Fuente de la Imagen: [https://bit.ly/33MLZ0Y](https://bit.ly/33MLZ0Y)
+  
+**!Siguiente paso !**
+**¿Podemos confiar en las predicciones de nuestro modelo?**
+
+## 5.2.5 Validación del modelo
+  
+Para poder hacer una valoración de si nuestro modelo puede ser utilizado para explicar y predecir faltan algunos pasos. Nos vamos a tener que adentrar en los residuos del modelo y hacer ciertas comprobaciones para asegurarnos de que todas las hipótesis de partida se cumplen.
+
+**¿Cumplen los residuos con la hipótesis de normalidad?**  
+
+Tanto en el histograma que ponemos a continuación como en el gráfico q-q plot podemos ver como los residuos parece que provienen de una distribución normal. Esto nos verifica que las betas que hemos obtenido están correctamente calculadas.
+
+**¿Tenemos que medir a ojo la normalidad de los residuos?** 
+
+No, también hay un contraste (Jarque Bera) que nos dice si los residuos se distribuyen como una normal utilizando el coeficiente de asimetría de los residuos calculados y la curtosis.(Solo utilizar para muestras grandes >500 datos)
+
+$$ \begin{align}
+JB=n(\frac{asimetria^2}{6}+\frac{(curtosis-3)^2}{24})\sim Chi^2 \\
+\\
+Donde:
+\\
+H0: X \sim N.la.serie.es.normal
+\end{align} $$
+
+
+```{r }
+layout(matrix(c(1,2),1,2,byrow=T))
+#Spend x Residuals Plot
+#plot(modelo2$resid~tabla$COMPRAS[order(tabla$COMPRAS)])
+#Histogram of Residuals
+hist(nuevo_modelo_final$resid, main="Histograma de residuos", ylab="Residuos")
+#q-qPlit
+qqnorm(nuevo_modelo_final$resid)
+qqline(nuevo_modelo_final$resid)
+#Jarque Bera
+jarqueberaTest(nuevo_modelo_final$resid)
+```
+
+Como podemos ver el estadístico nos dice que no debemos rechazar $$ H_0 $$. Por lo tanto aceptamos $$ H_0 $$. Así que nuestros residuos son normales. **! Grande Jarque Bera !**  
+  
+**¿Los residuos son independientes?** [Test Autocorrelación]
+
+Queremos demostrar que los residuos son independientes los unos de los otros. En el gráfico de dispersión de abajo podemos comprobar que no presentan patrón, pero para comprobarlo matemáticamente, podemos utilizar el contraste de Durbin Watson.  
+
+**!Los errores tienen que ser aleatorios¡**
+<center>
+![fig5.1.4](./figures/fig_5.1.4.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.kris-nimark.net](http://www.kris-nimark.net/Applied_Macro_2016/BaysianIntroSlides.pdf)
+  
+Necesitamos comprobar esto para asegurarnos de que no haya tendencia en los datos. Nuestro modelo puede ajustar de maravilla para unos datos fijos. Sin embargo, si notamos tendencia en los residuos, puede que a la hora de predecir, no acertemos ni una. 
+
+$$ \begin{align*} 
+H_0 &: \text{los errores son independientes.} \\ 
+H_1 &: \text{los errores no son independientes.}
+\end{align*}$$ 
+
+Después de aplicar el test podemos Aceptar la $$ H_0 $$. Quiere decir que los errores son independientes para nuestro modelo propuesto. 
+
+```{r }
+plot(nuevo_modelo_final$resid~tabla$COMPRAS[order(tabla$COMPRAS)],
+ main="COMPRAS x Residuos",
+ xlab="Compras", ylab="Residuos")
+abline(h=0,lty=2)
+
+dwtest(nuevo_modelo_final)
+```
+  
+**¿Los residuos tienen varianza constante?** [Test Homocedasticidad]
+
+Debemos chequear también que los errores tengan media 0 y que su varianza a lo largo de la serie estimada sea constante. La homocedasticidad es un criterio exigido en los modelos de regresión.  
+Para chequear que los errores tienen varianza constante vamos a hacer un gráfico parecido al anterior. Simplemente vamos a sustituir la variable COMPRAS real por la variable COMPRAS estimadas. 
+
+```{r }
+plot(nuevo_modelo_final$resid~predict(nuevo_modelo_final,tabla1),
+ main="Compras Estimadas x Residuos",
+ xlab="Compras Estimadas", ylab="Residuos")
+abline(h=0,lty=2)
+```
+
+Podemos ver que el comportamiento es muy parecido lo que pronostica que no hay heterocedasticidad. Los residuos tienen que parecer RUIDO BLANCO.  
+  
+**¿Qué es el ruido blanco?**
+<center>
+![fig5.1.2](./figures/fig_5.1.3.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.microsiervos.com](https://www.microsiervos.com/archivo/curiosidades/por-que-ruido-blanco-llama-blanco.html)
+  
+**¿Hay test matemático?**  
+
+Of course!. Breusch and Pagan lo propusieron. 
+
+$$ \hat{e}_i^2 = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + r $$
+Si $\beta_1$ y $\beta_2$ son igual que cero, entonces los residuos no son explicativos en el modelo inicial.
+
+$$ H_0=\text{Los Residuos son Homocedasticos} $$
+$$ H_1=\text{Los Residuos NO son Homocedasticos} $$
+
+```{r }
+bptest(nuevo_modelo_final)
+```
+
+Aceptamos que los residuos son homocedásticos. 
+  
+**¿Qué pasaría si no conseguimos residuos homocedásticos?**
+
+Pero antes de pasar a ello, simplemente hacer mención a las posibles soluciones en el caso de que el analista no consiga eliminar la heterocedastiidad en el modelo.  
+En vuestro camino modelizando vais a encontrar en multitud de ocasiones modelos que presentan heterocedasticidad. Es decir que la varianza no es homogénea a lo largo de las variables explicativas. Esto es un problema en las estimaciones que hemos realizado, puesto que como hemos comentado anteriormente, la varianza de las pendientes del modelo no estará correctamente calculada, puesto que tenía hipótesis clave detrás de su cómputo que no se estarían cumpliendo. Además, las implicaciones de negocio que serían las de fiarnos de un modelo que en ciertos segmentos es más incierto que en otros.  
+
+Las causas más comunes de encontrar heterocedasticidad de los residuos en los modelos son por determinados atípicos (outliers) dentro de la base de datos que hagan que el modelo se descuadre, otra causa puede ser la falta de variables para la información que tenemos en la base de datos, quiere decir que cuando tenemos una cantidad exagerada de grados de libertad dentro del modelo, se incrementa la probabilidad de encontrar heterocedasticidad. Y por último y una de las más comunes es una mala especificación del modelo. Quiere decir que hemos incluido variables que no debieran estar o que necesitaban una transformación previa para ser introducidas.  
+  
+Tenemos dos formas de conocer la verdadera varianza de las betas que hemos obtenido. La primera es reformular el modelo de mínimos cuadrados que hemos calculado. Esta vía solo podremos hacerla si conocemos la forma o expresión de la heterocedasticidad (Error condicionada a las variables explicativas). En este caso dividiremos todas las variables (endógena y exógenas) por la raíz de la expresión.  
+La segunda y más sencilla es utilizar los estimadores robustos a heterocedasticidad. Que son los estimadores que, aún siendo más complejos, descartan el supuesto de varianza constante y la generalizan para que sea en su forma verdadera.  
+
+$$ Var(\beta /X)=n^{-1} (\frac{X^tX}{n})^{-1} \frac{\sum{xx^te^2}}{n-k-1}  (\frac{X^tX}{n})^{-1}$$
+Es interesante coger tanto la varianza que hemos visto anteriormente basada en el supuesto de homocedasticidad como este estimador robusto propuesto para la varianza y compararlos.  Evidentemente cambiar la varianza no va a cambiar las estimaciones medias del modelo, pero si difiere mucho este estimador con el estimador de MCO, nos va a ayudar a especificar mejor el modelo. 
+
+**¿Qué pasaría si no conseguimos residuos no autocorrelacionados?**
+
+Esto puede darse también muy habitualmente por la propia inercia temporal de los datos, por sesgos en la especificación del modelo, por la inclusión de variables retardadas de otros periodos pasados o por la utilización de medias móviles por ejemplo. 
+
+Nuestra labor será la de encontrar la forma retardada de los residuos para poder modificar el modelo de tal forma que nos de estimadores eficientes (con mínima varianza). La primera opción que tenemos es utilizar el estimador de varianza robusto que hemos visto anteriormente para validar la significatividad de los estimadores. La segunda es modificar la ecuación original con algún tipo de retardo temporal que nos ayude a eliminar la autocorrelación. Esta última opción es de las más utilizadas en la práctica. Si nuestro modelo está fuertemente influido por el valor que le precede, una opción que tenemos es la de realizar el modelo en diferencias con respecto al año pasado, de tal forma que nuestra nueva variable resuesta sea la diferencia (variación) entre un año y otra y no su valor original.  
+
+
+
+Es buen momento para dar el paso y pasar del modelo de Regresión Lineal a los Modelos Lineales Generales. 
+
+  
+  
+** IMPORTANTE - IDEAS CLAVE **
+
+* Cuando realizamos una modelización estadística debemos quedarnos con aquellas variables explicativas que aportan valor a la modelización para evitar ruido innecesario dentro de la inferencia.
+* Adaptaciones sobre los métodos lineales como el que ofrece MARS ayudan a vencer la linealidad de las betas convirtiendo nuestros modelos en soluciones flexibles ante casi cualquier tipo de problema.
+* Los controles sobre heterocedasticidad y autocorrelación son clave para la validación final de un modelo y para valorar su potencial en predicción.
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+save.image(file='t2.RData')
+```

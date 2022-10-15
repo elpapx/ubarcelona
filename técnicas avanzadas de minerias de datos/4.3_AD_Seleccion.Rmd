@@ -1,0 +1,335 @@
+
+---
+title:    "Análisis Discriminante (LDA). Selección de Variables."
+license:  by-nc-sa
+urlcolor: blue
+output:
+  html_document: 
+    theme:        cosmo 
+    highlight:    tango 
+    toc:          true
+    toc_float:    true
+    code_folding: show
+  word_document:  default
+  epuRate::epurate:
+    toc:             TRUE
+    number_sections: FALSE
+    code_folding:    "show"
+  pdf_document:   default
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r,echo=FALSE, out.width = "500px"}
+knitr::include_graphics("./data/img/starwars.png")
+```
+
+[Fuente: https://logowiki.net/star-wars-episode-iv-logo.html](https://logowiki.net/star-wars-episode-iv-logo.html)
+
+# Objetivos Específicos
+
+* Aprender a utilizar el LDA como clasificador
+
+* Aprender a utilizar el LDA como reductor de dimensionalidad
+
+* Entender el proceso de selección de variables mediante la regresión stepwise
+
+# 1. Introducción al Análisis Discriminante
+
+El Análisis Discriminante Lineal (ADL, o LDA por sus siglas en inglés) es una generalización del discriminante lineal de Fisher,
+un método utilizado en estadística cuyo objetivo es encontrar una combinación lineal de rasgos que caracterizan o separan dos o 
+más clases de objetos o eventos. La combinación resultante puede ser utilizada como un clasificador lineal o para la reducción 
+de dimensionalidad.
+
+Así pues, un mismo problema como es el caso de la reducción de dimensionalidad, puede ser enfocado con un algoritmo de aprendizaje no superivsado, como sería el caso del PCA, y cuyo objetivo se centra en maximizar la varianza en un conjunto de datos, pero 
+también puede ser enfocado con un algoritmo de aprendizaje supervisado, como sería el caso del LDA, cuyo objetivo es maximizar la
+separabilidad entre clases.
+
+**El LDA está estrechamente relacionado con el análisis de varianza (ANOVA) y el Análisis de Regresión**, el cual también intenta 
+expresar una variable dependiente como la combinación lineal de otras características o medidas. Sin embargo el análisis ANOVA 
+usa variables independientes categóricas y una variable dependiente continua, mientras que el Análisis Discriminante tiene 
+variables independientes continuas y una variable dependiente categórica (o sea, la etiqueta de clase). 
+
+**El LDA está también estrechamente relacionado con el análisis de Componentes Principales (PCA)** en que ambos buscan combinaciones lineales de variables que sean capaces de explicar mejor los datos. El LDA explícitamente intenta modelar la diferencia entre las clases de datos, mientras que el PCA no toma en cuenta cualquier diferencia entre las clases. 
+
+Es importante comentar que el Análisis Discriminante requiere que las variables independientes sean contínuas. Existe una técnica
+llamada Análisis Discriminante de Correspondencia que es equivalente al Análisis Discriminante Lineal y que admite variables 
+categóricas.
+
+La idea detrás del LDA es simple. Matemáticamente hablando, necesitamos encontrar un nuevo espacio para proyectar los datos para
+maximizar la separabilidad de las clases.
+
+El primer paso es encontrar una forma de medir la de separación de cada nuevo espacio de variables. La distancia entre las 
+medias proyectadas de cada clase podría ser una de las medidas, sin embargo esta no sería una métrica demasiado útil, ya que no 
+tiene en cuenta aspectos importantes como la dispersión.
+
+En 1988, un estadístico llamado Ronald Fisher propuso la siguiente solución: **maximizar la distancia entre la media de cada clasey minimizar la dispersión dentro de la propia clase**. Por lo tanto, llegamos a **dos medidas: la que hace referencia a dentro de laclase y la que hace referencia a las clases**. Sin embargo, esta formulación sólo es posible *si asumimos que el conjunto de datos tiene una distribución Normal*. 
+
+Esta suposición es muy importante y si la distribución es significativamente no gaussiana, el LDA podría no funcionar demasiado 
+bien. 
+
+Como una imagen vale mas que mil palabras, a continuación puedes ver gráficamente el input y el output del proceso:
+
+```{r,echo=FALSE, out.width = "500px"}
+knitr::include_graphics("./data/img/lda-ejemplo1.jpg")
+```
+
+[Fuente: https://mc.ai/fischers-linear-discriminant-analysis-in-python-from-scratch/](https://mc.ai/fischers-linear-discriminant-analysis-in-python-from-scratch/)
+
+**Sabías que**
+
+Existe una técnica llamada Análisis Discriminante de Correspondencia que es equivalente al Análisis Discriminante Lineal y que 
+admite variables categóricas. 
+
+Los siguientes papers adjuntos pueden serte de utilidad para profundizar más en la técnica del Análisis Discriminante:
+
+* *Análisis_Discriminante_de_Correspondencia.pdf*: Donde aprenderás más acerca del Análisis Discriminante de Correspondencia.
+* *Análisis_Discriminante_Clasificador.pdf*: Teoría del LDA como clasificador.
+* *Análisis_Discriminante_Reductor.pdf*: Teoría del LDA como reductor de dimensionalidad.
+
+# 2. Introducción a la Selección de Variables
+
+La selección de variables **es un proceso importante a la hora de realizar cualquier modelo**, ya que mejora su interpretabilidad y
+la complejidad computacional (aunque esto último actualmente ya no es tan relevante ciertamente). 
+
+Muchas veces el proceso de selección de variables puede ayudarnos a lidiar con el archiconocido problema del *overfitting*. Este 
+problema básicamente consiste en que nuestro modelo es incapaz de generalizar las predicciones para nuevas instancias y se 
+ajusta excesivamente bien al subconjunto de entreno. Como una imagen vale más que mil palabras:
+
+```{r,echo=FALSE, out.width = "250px"}
+knitr::include_graphics("./data/img/seleccion-overfitting.jpg")
+```
+
+**Al reducir el número de variables explicativas del modelo, lo convertimos en más generalizable ante nuevas observaciones a costa de reducir la precisión en el conjunto de entreno.**
+
+El proceso para seleccionar variables es relativamente sencillo, básicamente deberías preguntarte lo siguiente:
+
+* ¿La adición de nuevas características aumenta necesariamente el rendimiento del modelo de manera significativa? 
+* Si no es así, ¿por qué añadir esas nuevas características que sólo van a aumentar la complejidad del modelo?
+
+Existen distintos métodos de selección de variables con distintos enfoques. La Regresión Stepwise es uno de ellos.
+
+## 2.1 La Regresión Stepwise
+
+En estadística, la Regresión Stepwise es un método de ajuste de modelos de regresión en el que la elección de las variables 
+predictivas se lleva a cabo mediante un procedimiento automático. 
+
+En cada iteración del proceso, se considera añadir o quitar una variable del conjunto de variables explicativas en base a algún 
+criterio preestablecido. Los principales criterios suelen ser:
+
+[F-Tests: https://en.wikipedia.org/wiki/F-test](https://en.wikipedia.org/wiki/F-test)
+[t-Tests: https://en.wikipedia.org/wiki/T-test](https://en.wikipedia.org/wiki/T-test)
+[R2 ajustado: https://en.wikipedia.org/wiki/Adjusted_R-squared](https://en.wikipedia.org/wiki/Adjusted_R-squared)
+[Indice de Akaike: https://en.wikipedia.org/wiki/Akaike_information_criterion](https://en.wikipedia.org/wiki/Akaike_information_criterion)
+
+### 2.1.1 Principales enfoques
+
+El modo de seleccionar variables se puede enfocar de 3 modos distintos:
+
+* **Forward Selection**: consiste en empezar el modelo con 1 variable, probar la adición de cada variable utilizando un 
+criterio de ajuste del modelo elegido, añadir la variable (si la hay) cuya inclusión da la mejora más significativa 
+estadísticamente del ajuste, y repetir este proceso hasta que ninguna mejore el modelo en un grado estadísticamente 
+significativo.
+
+* **Backward Elimination**: consiste en empezar con todas las variables posibles, probar la eliminación de cada variable 
+utilizando un criterio de ajuste del modelo elegido, eliminar la variable (si la hay) cuya pérdida da el mínimo deterioro 
+estadísticamente significativo del ajuste del modelo, y repetir este proceso hasta que ninguna otra variable pueda eliminarse 
+sin una pérdida de ajuste estadísticamente significativa.
+
+* **Stepwise o Eliminación Bidireccional**: una combinación de lo anterior, probando en cada paso las variables que deben incluirse o excluirse.
+
+### 2.2 Criterios de Selección
+
+Un algoritmo ampliamente utilizado en la actualidad fue propuesto por primera vez por *Efroymson* en los años 60. Se trata de un 
+procedimiento automático para la selección de modelos estadísticos en los casos en que hay un gran número de posibles variables 
+explicativas y no existe una teoría subyacente en la que basar la selección del modelo. 
+
+El procedimiento se utiliza principalmente en el análisis de regresión, aunque el enfoque básico es aplicable en muchas formas 
+de selección de modelos. Se trata de una variación de la selección con el enfoque *Forward Selection*. En cada etapa del proceso, 
+después de añadir una nueva variable, se hace una prueba para comprobar si algunas variables pueden suprimirse sin aumentar 
+apreciablemente la *suma residual de los cuadrados* (RSS). 
+
+El procedimiento termina cuando la medida se maximiza (localmente), o cuando la mejora disponible cae por debajo de algún
+valor crítico.
+
+### 2.3 Precisión del Modelo
+
+Una forma de comprobar los errores en los modelos creados por Regresión Stepwise es no depender del estadístico F, sino evaluar 
+el modelo frente a un conjunto de datos no utilizados para crear el modelo. Esto se hace habitualmente construyendo un modelo 
+basado en el 70% de las observaciones (conjunto de entreno) y se utiliza el 30% de las observaciones restantes para testar el 
+modelo (conjunto de testeo), **aunque estas proporciones pueden variar en función de distintos criterios** tales como el imbalanceo
+de clases o el número de observaciones total. 
+
+**Importante**
+
+La **precisión del modelo se suele medir mediante distintos métodos de ajuste del modelo** (accuracy, standard error o MAPE). 
+
+# 3. Actividad Guiada.
+
+El ejercicio propuesto consiste en una tarea de clasificación sobre un conjunto de datos públicos. El conjunto de datos contiene
+846 observaciones y 18 variables de 4 tipos diferentes de vehículos. 
+
+Cada uno de los atributos se corresponde con medidas físicas relativas a la forma de los vehículos. Para nuestro caso concreto, 
+únicamente tendremos en cuenta 3 de las 4 clases, agrupando la clase OPEL y SAAB como car.
+
+Se aplicará el LDA sobre el mismo conjunto de datos dos veces con enfoques diferentes:
+* En el primer enfoque el LDA actuará como un clasificador (**aproximación supervisada**).
+* En el segundo enfoque el LDA actuará como un **reductor de dimensionalidad** y utilizaremos el algoritmo del Random Forest para realizar la realizará la tarea de clasificación (**aproximación no supervisada**).
+
+Podrás encontrar más detalles acerca del conjunto de datos aquí: 
+[https://archive.ics.uci.edu/ml/datasets/Statlog+(Vehicle+Silhouettes)](https://archive.ics.uci.edu/ml/datasets/Statlog+(Vehicle+Silhouettes))
+
+## 3.1 El LDA como clasificador.
+
+En primer lugar, cargaremos el conjunto de datos. Esta versión del conjunto de datos ya viene con la nueva clase "car" y no será
+necesario realizar ningún filtrado ni agrupación. 
+
+Posteriormente eliminaremos las observaciones con valores nulos (verás que hay pocas) y normalizaremos las variables en rango 
+0-1.
+
+Para terminar crearemos un subconjunto de entreno y otro de testeo para aplicar el algoritmo de clasificación a posteriori.
+
+```{r,warning=FALSE,message=FALSE}
+# Carga paquetes necesarios
+require(dplyr)
+require(MASS)
+require(caret)
+require(randomForest)
+```
+
+```{r}
+# Carga del conjunto de datos
+data_raw <- read.csv( "https://raw.githubusercontent.com/LaxmiChaudhary/Classifying-silhouettes-of-vehicles/master/vehicle.csv", stringsAsFactor = FALSE )
+
+# Elimino los NA's
+data<-na.omit(data_raw)
+
+# Normalizo las variables del datset en rango 0-1
+maxs <- apply( data[,1:18], 2, max )
+mins <- apply( data[,1:18], 2, min )
+dataset <- as.data.frame( scale( data[,1:18], center = mins, scale = maxs - mins ) )
+dataset <- cbind( dataset, "class" = data$class )
+
+# Split dataset (60% conjunto de entreno - 40% conjunto de testing)
+index <- sample( 1:nrow( dataset ), round( nrow( dataset )*0.6 ), replace = FALSE )
+X_train <- dataset[ index, ]
+test <- dataset[ -index, ]
+```
+
+La implementación que utilizaremos del algoritmo del LDA la encontrarás en la librería MASS mediante la función lda. Esta 
+función trae un par de parámetros del modelo como las probabilidades previas de los grupos, las medias de los grupos y los 
+coeficientes de discriminante lineal. **El resultado más importante aquí son los coeficientes**, son valores que describen el nuevo
+espacio de variables en el que se proyectarán los datos. 
+
+```{r}
+# Creo el objeto con el modelo LDA llamado model
+set.seed(12345)
+model <- lda( class ~ ., data = X_train )
+
+# Grafico las dos nuevas dimensiones creadas por el modelo LDA
+projected_data <- as.matrix( X_train[, 1:18] ) %*% model$scaling
+plot( projected_data, col = X_train[,19], pch = 19 )
+```
+
+El LDA reduce la dimensionalidad del número original de variables a C - 1, donde C es el número de clases. En este caso, tenemos
+3 clases, por lo tanto el nuevo espacio de tendrá sólo 2 variables (LD1 y LD2).
+
+En la imagen de arriba puedes ver el nuevo plano con las dos únicas variables. Tal y como podrás ver, hay 
+algunos puntos que se superponen entre las tres clases, pero en general, el conjunto de datos es bastante separable. 
+
+Después de la fase de entrenamiento, necesitamos medir la precisión del modelo obtenido para saber cómo está clasificando las 
+clases. Para ello, imprimiremos la matriz de confusión.
+
+```{r}
+# Cálculo de las predicciones del modelo
+X_test <- test[, !( names( test ) %in% c( "class" ) ) ]  
+model.results <- predict( model, X_test )
+
+# Matriz de confusión
+t = table( model.results$class, test$class )
+print(confusionMatrix(t))
+```
+
+Tal y como puedes ver en la imagen de arriba, el LDA alcanza una precisión por encima del 94%. Es buen resultado? Bueno, según 
+como se mire y a quién se lo presentes:
+
+```{r,echo=FALSE, out.width = "200px"}
+knitr::include_graphics("./data/img/lda-rambo.jpg")
+```
+
+Ahora que hemos visto como aplicar el LDA como clasificador mediante una implementación del algoritmo en R, pasamos a ver como 
+aplicarlo como reductor de dimensionalidad.
+
+## 3.2 El LDA como reductor de dimensionalidad.
+
+Tal y como has visto en el ejemplo anterior, el Análisis Discriminante reduce la dimensionalidad del número original de 
+variables a C - 1, donde C es el número de clases. En este ejercicio, tenemos 3 clases, por lo tanto el nuevo espacio hemos 
+visto que sólo tenía 2 variables (LD1 y LD2).
+
+En el siguiente ejemplo, tenemos 3 clases y 18 variables. El LDA reducirá de 18 variables a solo 2. Después de la reducción de 
+variables, se aplicará el algoritmo del Random Forest para la tarea de clasificación. El procedimiento aquí es casi el mismo que el anterior. Echa un vistazo:
+
+Tal y como puedes ver en el código, utilizaremos los coeficientes ya definidos en la fase de entrenamiento anterior para proyectar 
+el conjunto de datos de entrenamiento en el nuevo espacio de variables, este nuevo espacio será el nuevo conjunto de datos de 
+entrenamiento. Este será el dataset de entreno para el modelo.
+
+```{r}
+# Creación del nuevo dataset de entreno
+new_X_train <- as.matrix( X_train[,1:18] ) %*% model$scaling
+new_X_train <- as.data.frame( new_X_train )
+new_X_train$class <- X_train$class
+head(new_X_train)
+```
+
+```{r}
+# Creación del nuevo dataset de testing
+new_X_test <- as.matrix( X_test[,1:18] ) %*% model$scaling
+new_X_test <- as.data.frame( new_X_test )
+head(new_X_test)
+```
+
+Posteriormente, procedemos a entrenar el modelo. En posteriores temas aprenderás más acerca de los parámetros del algoritmo del Random Forest, por lo que no nos pararemos en detalle a ver cómo se construye el clasificador ni a su interpretación. Para este caso concreto únicamente necesitaremos ver las predicciones para poderlo comparar con el LDA actuando como clasificador:
+
+```{r}
+# Entreno el modelo con random forest
+set.seed(12345)
+modfit.rf <- randomForest(class ~. , data=new_X_train)
+
+# Predicciones con random forest
+predictions.rf <- predict(modfit.rf, as.data.frame(new_X_test), type = "class")
+
+# Matriz de confusión
+t = table( predictions.rf, test$class)
+print(confusionMatrix(t))
+
+```
+
+Tal y como podrás comprobar en los resultados arriba expuestos, el Random Forest alcanza una precisión por encima del 95%, quedando por debajo en poco más de medio punto porcentual del LDA actuando como clasificador. 
+
+
+## 3.3 Conclusión.
+
+Tal y como habrás podido comprobar, los resultados son ligeramente mejores para el primer enfoque delproblema. Es decir, **se mejora la precisión ligeramente si el LDA actúa directamente como clasificador en lugar de utilizarlo como reductor de dimensionalidad para posteriormente utilizar un clasificador distinto**.
+
+Así pues, **a que enfoque concederías la victoria?**
+
+```{r,echo=FALSE, out.width = "150px"}
+knitr::include_graphics("./data/img/lda-win.jpg")
+```
+
+**En realidad no hay una respuesta universal**. Pese a que el primer enfoque nos da un resultado ligeramente superior al segundo y es más directo, en este caso sí parece ser la solución más directa y efectiva al problema. Sin embargo, esto no debes tomarlo como norma y pueden haber determinados escenarios en los que te interese utilizar el LDA como reductor de dimensionalidad para posteriormente aplicar el nuevo set de variables dentro de un modelo mucho más grande.
+
+# 4. Ideas Clave
+
+* El LDA está estrechamente relacionado con el análisis de varianza (ANOVA) y el Análisis de Regresión.
+
+* El LDA se puede utilizar como reductor de dimensionalidad.
+
+* La selección de variables es nuestra primera línea de defensa contra el overfitting.
+
+* Se puede enfocar la selección de variables mediante la regresión stepwise de 3 modos distintos, empezando con 1 sola variable e ir añadiendo el resto (forward selection), empezando con todas las variables posibles e ir eliminando una a una (backward elimination) o mediante la eliminación bidireccional (stepwise) en el que cada paso es una mezcla de los dos anteriores.
+
+* Es importante definir el método de ajuste para determinar si un modelo es efectivo o no, con métricas como la precision o el MAPE.

@@ -1,0 +1,597 @@
+
+---
+title:    "Técnicas Avanzadas de Predicción Modelo Lineal General (MLG)"
+license:  by-nc-sa
+urlcolor: blue
+output:
+  word_document:  
+    toc: yes
+    reference_docx: template_style.docx
+  html_document: 
+    theme:        cosmo 
+    highlight:    tango 
+    css: mystyle.css
+    toc:          true
+    toc_float:    true
+    code_folding: show
+  epuRate::epurate:
+    toc:             TRUE
+    number_sections: FALSE
+    code_folding:    "show"
+  pdf_document:   default
+---
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+source("./Data/Functions.R")
+load(file='t1.RData')
+load(file='t2.RData')
+```
+
+<center>
+![fig_ini](./figures/fig_ini.jpg){width=50%}
+<center>
+Fuente de la Imagen: [https://es.wikipedia.org/wiki/Star_Wars:_Episodio_V_-_El_Imperio_contraataca](https://es.wikipedia.org/wiki/Star_Wars:_Episodio_V_-_El_Imperio_contraataca)   
+  
+  
+**Objetivos Específicos**   
+  
+* Aprender la diferencia entre los modelos lineales y los modelos lineales generalizados. Cuándo vamos a tener que recurrir a dichos modelos.
+* Distinguir los diferentes tipos de modelos dentro de los modelos lineales generalizados. 
+* Conocer que metodología de resolución tienen este tipo de problemas. 
+
+
+# 5.3 Modelo Lineal General (MLG)
+  
+Este tema vamos a empezarlo directamente presentando una nueva base de datos. Aunque no nos vamos a olvidar de la anterior base de datos puesto que volveremos a ella más adelante. 
+
+---
+  
+**ACTIVIDAD: Seguro de Auto**
+  
+Contamos con los DATOS de una empresa de seguros. Esta empresa quiere establecer una nueva tarifa para su producto de cobertura de lunas de coche. Para ello quiere ofrecer un producto adecuado al nivel de riesgo de cada cliente. Contamos con una base de datos del número de siniestros sufrido por cada cliente durante el año pasado.
+
+* Garantía: Tres niveles de garantía. 1-> Menor Cobertura 2-> Cobertura Premium 3 -> Cobertura Gold.
+* Edad Carnet: Número de años desde que se sacó el carnet de conducir el tomador del seguro.
+* Edad Coche: Número de años desde que el coche fue fabricado.
+* Sex: Indica si es Varon o Mujer.
+* Edad: Edad del tomador de la póliza.
+* x: Longitud del domicilio del cliente.
+* y: Latitud del domicilio del cliente.
+* response: Número de siniestros que tuvo el cliente el año pasado. 
+* Expuesto: Porcentaje del año en el que este cliente ha estado expuesto.  
+   
+   
+***Objetivo**: El objetivo que tiene la empresa es el de modelizar la variable response (Frecuencia de siniestros) con las diferentes variables explicativas que contamos. Con esta modelización, podrá definir la tarifa con la que salir al mercado. Para ello sabemos que el coste medio de cada siniestro es de 300 euros y además que los gastos de marketing y ventas del seguro representan un 20% de la prima. 
+  
+  $$ Prima=\frac{Siniestros*CosteSiniestro}{1-Gastos}=\frac{ModeloSiniestros*300}{1-0.20} $$
+  
+¿Generan todos los clientes el mismo número de siniestros?  
+¿Podemos discriminar perfiles y ofrecerles una prima adaptado a su riesgo?  
+  
+```{r results='asis', size="small"}
+df<-read.csv("./Data/table_5.03.csv",sep=",")[,-1] 
+pander(head(df), split.cell = 60, split.table = Inf,digits=2)
+```
+   
+---
+
+  
+**¿Estamos ante un problema de regresión lineal?**
+  
+## 5.3.1 Modelo de Regresión Lineal vs Modelos Lineales Generalizados
+
+Recordemos que en un modelo de regresión lineal teníamos un conjunto de variables explicativas(X) y una variable explicada (Y).  
+
+< recuerda >
+
+Estábamos asumiendo que:  
+  
+* El error (e) de la dependencia lineal entre Y y X sigue una distribución normal.
+* Por lo tanto, como consecuencia de lo anterior Y|X sigue una distribución Normal.
+* El error (e) y las variables explicativas (X) son independientes
+* Asumimos que la varianza del error es homogénea.
+  
+< /recuerda >  
+  
+  
+Matemáticamente: 
+
+$$ \begin{align}
+Para: Y=X\beta+e \\
+\\
+e\sim N(0,\sigma^2) \\
+ \\
+Entonces: Y|X \sim N(X\beta,\sigma^2)
+\end{align} $$ 
+
+**¿No hay ninguna alternativa si alguna de estas hipótesis no se cumplen o queremos cambiarlas?**  
+  
+Justo para esto surge la generalización de la regresión lineal, en la que se relajan algunas hipótesis iniciales.   
+En nuestra base de datos, estamos intentando modelizar el número de siniestros que cada cliente va a tener el próximo año. 
+  
+* A nuestro entendimiento no sigue una distribución normal. Sino que parece más una distribución Poisson o quasi-Poisson o Binomial Negativa o Zero-Inflated Poisson. 
+* Además, debemos ponerle una restricción al modelo. No tendría sentido que nuesta predicción saliese un número negaivo ¿verdad?. Entonces modelizarlo como una normal no sería la mejor opción por el rango de nuestros datos.  
+  
+Entonces debemos explorar los modelos lineales generalizados para ver si podemos modelizar este fenómeno con ellos.  
+Los próximos apartados contienen mucha fórmula y requieren especial atención. Os he intentado resumir el proceso y hacerlo amigable para que podáis entenderlo matemáticamente para luego en la práctica ser mucho más fuertes.  
+  
+**¿Qué nos permiten cambiar los modelos lineales generales?** 
+  
+* Nos permite cambiar la distribución de Y|X. Es decir, la relación media-varianza. **Función de distribución ()**
+* Nos permite cambiar la relación de linealidad entre la media de nuestra variable respuesta y las variables explicativas. **Función Link g(u)**.
+   
+## 5.3.2 Cambiar la función de distribución. La familia exponencial.
+  
+Recordamos las funciones de principales que vamos a tratar:
+
+$$ \begin{align}
+Y \sim Normal(\mu ,\sigma^2) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\sigma^2 \\
+\\
+Y \sim Poisson(\mu) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\mu \\
+\\
+Y \sim Binomial(\mu) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\mu(1-\mu) \\
+\\
+Y \sim Gamma(a\mu,a) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\mu/a \\
+\end{align} $$
+
+Es importante entender la distribución que tenemos detrás de nuestros datos para realizar un buen ajuste en nuestro modelo.  
+  
+**¿Hay alguna función que pueda englobar la Normal, Poisson, Gamma....I can't beleive it?**
+
+Toda aquella función de densidad que pueda escribirse así, pertenece a la familia exponencial.
+
+$$ f(y, \theta,\phi ,)=exp(\frac{y\theta-b(\theta)}{a(\phi)}+c(y,\phi))  $$
+
+Donde a(), b(), c() son funciones. $$ \phi $$ Es un parámetro de dispersión que puede ser conocido o desconocido. $$ \theta $$ es el parámetro natural o canónico.  
+
+**¿La normal se puede expresar con la función de la familia exponencial?**  
+
+$$ \begin{align}
+f()=\frac{1}{(2\pi \sigma^2)^{(0.5)}}exp(-\frac{(y-\mu)^2}{2\sigma^2})= \\
+exp(\frac{(y\mu-\mu^2/2)}{\sigma^2}-\frac{(y^2)}{2\sigma^2}-\frac{1}{2}ln(2\pi \sigma^2)) \\
+\\
+Entonces: \\
+\theta=\mu \\
+b(\theta)=\theta^2 \\
+a(\phi)=\sigma^2 \\
+c(y,\phi)=-\frac{1}{2}ln(2\pi \sigma^2) \\
+\end{align} $$
+  
+**¿La poisson se puede expresar con la función de la familia exponencial?**  
+
+$$ \begin{align}
+f()=\frac{\mu^{y}}{(y!)}exp(-\mu)= \\
+exp(y ln(\mu)-\mu-ln(y!)) \\
+\\
+Entonces: \\
+\theta=ln(\mu) \\
+b(\theta)=exp(\theta) \\
+a(\phi)=1 \\
+c(y,\phi)=ln(y!) \\
+\end{align} $$
+
+## 5.3.3 Cambiar la función link
+
+La función link es la que relaciona el valor esperado de nuestra variable respuesta (Y) con el predictor lineal.   
+$$ \begin{align}
+E(Y|X)=\mu \\
+\\
+g(\mu)=X\beta \rightarrow \mu=g^{-1}(X\beta)
+\end{align} $$  
+  
+< recuerda >  
+
+En la regresión lineal no hay transformación. Podemos decir que la función link es la identidad.  
+
+$$ \begin{align}
+g(\mu)=\mu=X\beta
+\end{align} $$
+
+< /recuerda >  
+  
+**¿Pero cómo calibramos el modelo y de donde salen las betas?**
+  
+## 5.3.4 Calibración el modelo
+
+Tenemos la función exponencial:
+
+$$ f(y, \theta,\phi)=exp(\frac{y\theta-b(\theta)}{a(\phi)}+c(y,\phi))  $$
+¿Estimamos por Log-Verosimilitud?  
+
+$$ l(y, \theta)=\sum (\frac{y\theta-b(\theta)}{a(\phi)})+\sum c(y,\phi))  $$
+
+Y también tenemos:
+
+$$ g(\mu)=X\beta  $$ 
+  
+Maximizamos la log-verosimilitud:
+
+$$ \begin{align}
+U_j=\frac{\partial l(\theta,y)}{\partial \beta}=\sum \frac{(y-\mu)x }{Var(Y)g'(\mu)  } \\
+\\
+Matricialmente: \\
+\\
+U=X^tM^{-1}(Y-\mu) \\
+\\
+Siendo: \\
+M=diag(m_i,,,m_n)  \\
+m_i=Var(Y_i)g'(\mu_i)
+\end{align} $$
+
+Las ecuaciones que obtenemos al intentar resolver cada una de las betas no tienen por qué ser lineales.... 
+
+**Vaya formulotes estamos viendo. ¿Entonces qué hacemos?**  
+ 
+Tenemos que resolver esto por algún método numérico. Lo podemos resolver por Newton-Raphson o por Scoring Fisher, pero en ambos métodos hay que calcular matrices Hessianas que son de alto coste computacional.  
+Por eso optamos por el método de **Mínimos cuadrados ponderados iterativos**.  
+  
+$$ \begin{align}
+\beta^{r}=(X^tW^{-1}X)^{-1}X^tW^{-1}Z \\
+\\
+Donde: \\
+W=diag(Var(Y)g'(\mu)^2) \\
+\\
+Z=X\beta+(y-\mu)diag(g'(\mu_1,,,,\mu_n))
+\end{align} $$
+
+< sabías que >  
+
+En ocasiones dada la complejidad de las operaciones matemáticas tenemos que recurrir a los denominados métodos numéricos que son iteraciones de operaciones de tal forma que aproximen la solución final. 
+
+< /sabías que > 
+
+Resolvemos un problema a mano con la matemática aprendida y con la función glm. Simplemente vamos a verificar que podemos resolver el problema de los coeficientes del modelo para una submuestra de la base de datos que estamos trabajando. 
+  
+```{r }
+df_tratada<-dplyr::select(df,response,edad_carnet,edad_coche)[1:300,]
+
+X<-as.matrix(dplyr::select(df_tratada,-response))
+Y<-as.matrix(df_tratada$response)
+
+X <- as.matrix(cbind(1,X))
+beta<-as.matrix(c(1,0,0))
+
+for(i in 1:300) {
+Z <- as.matrix(X%*%beta+((Y-exp(X%*%beta))/exp(X%*%beta)))
+W <- diag(as.numeric(exp(X%*%beta)))
+
+beta <- solve(t(X)%*%W%*%X)%*%t(X)%*%W%*%Z
+}
+
+#Coeficientes GLM
+glm(response~edad_carnet+edad_coche,data=df_tratada,family=poisson(link="log"))$coefficients
+
+#Coeficientes Algebra
+print(as.numeric(t(beta)))
+
+
+```
+
+## 5.3.5 Vuelta a nuestro problema.
+
+**¿Qué distribución utilizo?**  
+
+Existe una distribución que sea mejor que todas las demás. En la práctica tenemos que tirar del conocimiento que tenemos sobre los datos para poder elegirla.  
+
+* Si tenemos datos continuos y sin límites, podemos utilizar la función por defecto Gaussiana.
+* Si tenemos datos continuos y no negativos, podemos pensar en distribuciones Gamma que son muy flexibles.
+* Si tenemos datos binarios o categóricos, podemos estar delante de una distribución Binomial o Multinomial.
+* Y si tenemos datos discretos basados en conteos podemos estar hablando de una Poisson, Quasi-Poisson o Binomial Negativa.
+  
+**¿Qué función Link elijo?**  
+  
+Una que tenga sentido para los datos que estamos trabajando. Las funciones para elegir son estas:  
+
+<center>
+![fig5.1.6](./figures/fig_5.1.6.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.freakonometrics.hypotheses.org](https://freakonometrics.hypotheses.org/56682)
+  
+**¿Cómo lo programo?**
+  
+Solamente tenemos que utilizar la función glm. 
+  
+Primero vamos a especificar el modelo con todo lo que tenemos:
+```{r }
+# Establecemos la formula para  más adelate modelizar. 
+formula<-as.formula('response~garantia+edad_carnet+edad_coche+sex+edad+siniestros_ly')
+formula
+```
+  
+**¿Cómo voy a tratar variables categóricas?**  
+
+Las variables categóricas son aquellas que no son numéricas. Tienen un valor, pero el valor no tiene sentido estadístico ordenarlo. (Peras/Manzanas) (Hombre/Mujer) (Tipo de Coche).  
+  
+En nuestro caso, la variable GARANTÍA aunque sea un número, no tiene sentido de orden. Simplemente son distintos tipos de garantía que el cliente ha elegido. Entonces, lo primero que tenemos que hacer es asegurarnos que R está tratando esa variable como categórica. Lo siguiente que va a hacer nuestro modelo es generar tantas variables como categorías tiene la variable. En nuestro caso, dado que la variable GARANTÍA tiene tres niveles, el modelo va a generar tres variables: Garantía1, Garantía2, Garantía3. Cada una de estas variables tiene observaciones de 1 o 0. (1) en el caso de que la observación en GARANTÍA sea igual a 1, (0) en el caso de que la observación en GARANTíA sea igual a 2 o 3. Y así sucesivamente registro a registro. 
+Luego cuando generemos el modelo vamos a ver que el modelo quita una de ellas. Se queda  solamente con Garantía2, Garantía3.   
+  
+< piensa un minuto >  
+
+**¿Por qué lo hace? ¿Por qué razón no podemos meter tres variables que agregadas siempre suman 1 dentro del modelo?**.  
+
+< /piensa un minuto >  
+  
+Porque no puede haber combinaciones lineales perfectas en el modelo. Os acordáis que cuando veíamos la correlación de Pearson os decía que medir las correlaciones es importante. Pues es por esto.  
+  
+Garantía1+Garantía2+Garantía3=Intercept (Vector de 1)  
+  
+Esto sería una correlación perfecta, entonces debemos quitar una variable en el modelo. En casi todos los softwares esto se hace automáticamente.  
+
+**¿Cómo tratar la variable expuesto?** 
+
+¿Es lo mismo haber estado expuesto 365 días, que haber estado expuesto 30 días?. Claro que no, las probabilidades deben estar corregidas. Esto hay que decírselo a nuestro programa, en concreto lo podemos meter directamente en la especificación.  
+Es el llamado Offset, que quiere decir el ajuste por exposición que debemos hacer a nuestra base de datos para decirle quien ha estado mucho tiempo expuesto y por lo tanto, sería normal que tuviese más siniestros, y quien ha estado menos expuesto.  
+**Hay que medir a todos los registros por igual**
+
+$$ \mu=exp(X\beta + ln(t))=t exp(X\beta) $$
+Vamos a crear tres q-q plots:
+
+1. M1: El primero con el modelo perfecto.
+2. M2: El segundo sin contemplar la exposición en la base de datos. Offset.
+3. M3: Por último, utilizando la distribución Normal, en lugar de una Poisson. 
+  
+
+```{r }
+layout(matrix(c(1,2,3),1,3,byrow=T))
+#Declaramos la variable categórica
+df$garantia<-relevel(as.factor(df$garantia),ref=2)
+#Formula Nueva
+formula_new<-as.formula('response~garantia+edad_carnet+edad_coche+sex+edad+siniestros_ly+offset(log(Expuesto))')
+
+m1<-glm(formula_new,data=df,family=poisson(link="log"))
+m2<-glm(formula,data=df,family=poisson(link="log"))
+m3<-glm(formula,data=df,family=gaussian)
+
+#q-qPlit
+plot(m1,which=c(2),main="M1", adj = 0)
+plot(m2,which=c(2),main="M2", adj = 0)
+plot(m3,which=c(2),main="M3", adj = 0)
+
+#También lo podemos medir utilizando la función para comparar valores estimados y reales
+#Hist(df,df$response,predict(m1,df,type="response"),df$edad_carnet,5,10)
+#Hist(df,df$response,predict(m2,df,type="response"),df$edad_carnet,5,10)
+#Hist(df,df$response,predict(m3,df,type="response"),df$edad_carnet,5,10)
+
+```
+
+**¿Alguna técnica adicional para comparar modelos?**
+
+Si. La devianza de un modelo GLM es una medida de bondad del ajuste que compara dos modelos:
+
+1. El modelo que tenemos programado
+2. Con el modelo saturado. Quiere decir con el modelo con todas las variables y combinaciones de variables posibles. 
+
+$$ Devianza=-2[log.Mv(mimodelo)-log.Mv(modelo.saturado)] $$
+
+Cuanta menor devianza por lo tanto, mejor para nuestros intereses.  
+
+Comparamos los modelos obtenidos y comprobamos que el que tiene menor devianza es el m1. 
+
+```{r }
+m1$deviance
+m2$deviance
+m3$deviance
+```
+
+Una vez hemos terminado el chequeo de residuos, y hemos elegido nuestro modelo final.  
+  
+**¿Interpretación del modelo y efectos marginales?**  
+
+Cuando hacemos un summary() del modelo de regresión final que hemos planteado, vamos a encontrar la estimación de las betas y la varianza de las mismas. Esta información nos es útil para decidir si la variable es significativa y por lo tanto, en este entorno multivariante, susceptible de entrar en el modelo. También el signo (+ o -) de la beta nos indica la relación entre la variable explicativa y la variable respuesta.  
+  
+Los efectos marginales nos dicen cuánto cambio se produce en nuestra variable respuesta estimada dado un cambio de una unidad en la variable explicativa.  
+
+```{r }
+summary(m1)
+
+poissonmfx(formula = formula_new,data=df)
+```
+
+Recordamos que nuestro objetivo es el de generar una tarifa para poder comercializar. Ya tenemos nuestro modelo realizado, hemos comprobado que los residuos siguen todas las hipótesis marcadas, hemos visto la relación entre las variables.
+
+A continuación, desarrollamos el tarificador de nuestro seguro de auto.
+
+$$ Prima=\frac{Siniestros*CosteSiniestro}{1-Gastos}=\frac{ModeloSiniestros*300}{1-0.20} $$
+  
+
+```{r }
+garantia2<-1
+garantia3<-0
+edad_carnet<-17
+edad_coche<-5
+sex<-1
+edad<-39
+siniestros_ly<-2
+Expuesto<-1
+
+X<-cbind(1,garantia2,garantia3,edad_carnet,edad_coche,sex,edad,siniestros_ly)
+beta<-m1$coefficients
+
+Siniestralidad<-exp(as.matrix(X)%*%as.matrix(beta))
+CosteSiniestro<-300
+Gastos<-0.2
+
+print("La tarifa que le correspondería sería:")
+print(paste(floor(Siniestralidad*CosteSiniestro/(1-Gastos)),"Euros"))
+
+```
+
+## 5.3.6 Modelos Logísticos
+
+**¿La distr. Binomial se puede expresar con la función de la familia exponencial?**  
+
+$$ \begin{align}
+f(y)=exp(y ln(\frac{p}{1-p})+ln(1-p)) \\
+\\
+Donde: \\
+Y={0,1} \\
+p=\text{Probabilidad de que un suceso ocurra} \\
+\end{align} $$
+
+Contamos con una tercera base de datos bastante interesante y diferente a lo que hemos venido viendo a lo largo de los temas.  
+  
+---
+  
+**ACTIVIDAD: Sensores de Movimiento**
+  
+Contamos con los DATOS procedentes de diferentes sensores colocados en personas durante sus actividades cotidianas del día a día. Los sensores a través de un acelerómetro capturan los movimientos de las diferentes personas. Cada una de las personas van a hacer diferentes acciones que quedan reflejadas en la base de datos. Se capturan 300 milisegundos por cada una de las acciones que la persona desempeña. Para el trabajo en cuestión, he elegido los datos procedentes de 1 sensor colocado en la muñeca de la persona. 
+
+* Nombre_Fichero: Nos indica el tipo de movimiento que la persona ha realizado. (Caminar, Sentarse, AbrirPuerta, Caerse...)
+* X1...X303: Nos indica el valor del acelerómetro desde el milisegundo 1 al milisegundo 303. 
+  
+**Objetivo**: El objetivo que tiene la empresa es la de detectar cuando una persona se cae de tal forma que pueda generar dispositivos para personas mayores que viven solas que cuando sufran caídas automáticamente un algoritmo lo reconozca y llame automáticamente a un equipo de ayuda.  
+  
+Para ello lo primero que vamos a hacer es establecer nuestra variable respuesta. Nuestra variable son aquellos registros que provengan de secuencias de caídas. Para ello las identificamos como "Fall_Forward".
+
+```{r results='asis', size="small"}
+df<-read.csv("./Data/table_5.04.csv",sep=",")[,-1] 
+df$response<-grepl("Fall_forwardFall",df$nombre_fichero)+0
+table(df$response)
+```
+  
+Del total de 746 registros, tenemos 71 veces en las que el patrón del sensor representa una caída de una persona. 
+
+<center>
+![fig5.1.7](./figures/fig_5.1.7.jpg){width=100%} 
+<center>
+Fuente de la Imagen: [www.webpersonal.uma.es](http://webpersonal.uma.es/de/ECASILARI/Fall_ADL_Traces/UMA_FALL_ADL_dataset.html) 
+  
+---
+
+Antes de meternos en modelizar el fenómeno, vamos a visualizar el fenómeno en concreto. En este problema no tenemos variables interpretables, sino que tenemos variables que corresponden a una ventana en el tiempo vinculada con el acelerómetro instalado en el sensor de la muñeca de una serie de personas. Esta ventana temporal es la que queremos modelizar y poder predecir si vuelve a pasar en el real-time, predecir que es una caída.  
+
+
+```{r}
+layout(matrix(c(1,2,3),1,3,byrow=T))
+
+plot(as.numeric(df[680,c(-1)]),type="l",main=df[680,c(1)])
+
+plot(as.numeric(df[420,c(-1)]),type="l",main=df[420,c(1)])
+
+plot(as.numeric(df[520,c(-1)]),type="l",main=df[520,c(1)])
+```
+
+Como parece que el movimiento de caída se produce principalmente en los primeros 120 milisegundos. Filtramos la base de datos y procedemos a modelizar.
+
+```{r}
+df<-df[,-c(1,120:304)]
+colnames(df)
+```
+
+Cada uno de los milisegundos que componen la base de datos va a ser una variable explicativa. Dentro de un entorno multivariante donde todos los milisegundos consideraos como variables explicativas se combinan para intentar predecir correctamente el suceso. Independientemente de los milisegundos significativos y no significativos, vamos a introducir todos ellos en el modelo lineal para ver el ajuste al que nos lleva.
+
+**¿Cómo modelizamos un suceso binomial?**  
+  
+Las funciones link más habituales para respuesta binaria son los siguientes:
+  
+$$ \begin{align}
+Logit(p)=ln(p/(1-p)) \\
+Probit(p)=\phi^{-1}(p) \\
+Cloglog(p)=ln(-ln(1-p))
+\end{align} $$
+  
+La resolución del modelo es con el método de máxima verosimilitud visto anteriormente y con un método numérico para su resolución. Así, propongo tres modelos diferentes.  
+
+<center>
+![fig5.1.8](./figures/fig_5.1.8.jpg){width=100%} 
+<center>
+Fuente de la Imagen: [www.towardsdatascience.com](https://towardsdatascience.com/why-is-logistic-regression-the-spokesperson-of-binomial-regression-models-54a65a3f368e) 
+
+1. Modelo Logit
+2. Modelo Probit
+3. Modelo Probit con el algoritmo MARS que vimos anteriormente  
+
+```{r warning=FALSE,message=FALSE}
+modelo_logit<-glm(response~.,data=df,family=binomial(link="logit"))
+modelo_probit<-glm(response~.,data=df,family=binomial(link="probit"))
+modelo_earth<-earth(response~.,data=df,glm=list(family=binomial(link=probit)))
+```
+
+En este problema, no nos interesa tanto la interpretabilidad de los datos como la capacidad de predicción. 
+
+**¿Cómo evaluamos la capacidad de predicción en modelos binarios?**
+
+A través de la curva ROC. Pero antes de la ROC tenemos que saber qué es la matriz de confusión.  
+
+La matriz de confusión es la relación entre valor real y valor estimado:
+
+1. Verdadero Positivo (VP): Estimamos Positivo y Realidad Positivo.
+2. Falso Positivo (FP): Estimamos Positivo y Realidad Negativo.
+3. Verdadero Negativo (VN): Estimamos Negativo y Realidad Negativo.
+4. Falso Negativo (FN): Estimamos Negativo y Realidad Positivo.
+
+De aquí surgen dos conceptos para relacionar los mismos, la especificidad y la sensibilidad.
+
+1. Especificidad: VN/(VN+FP). Cuanto mayor mejor. 
+2. Sensibilidad: VP/(VP+FN). Cuanto mayor mejor. 
+
+< importante >  
+
+Los modelos Probit, Logit, Cloglog,,, nos dan una probabilidad asociada al individuo. Es aquí donde la labor del analista es fundamental a la hora de determinar lo que se considera Positivo o Negativo. 
+
+< /importante >  
+
+< piensa un minuto >  
+
+Si la probabilidad de que los valores del acelerómetro sean una caída es de un 80% ¿Lo podemos considerar caída?. Si la probabilidad es un 70% ¿Lo podemos considerar caída?. Si la probabilidad es un 60% ¿Lo podemos considerar caída? y así sucesivamente. 
+
+< /piensa un minuto >  
+
+
+Hay que establecer uno corte para determinar lo que se considera Positivo y Negativo.   
+
+< importante >  
+
+Lo que nos mide la curva ROC es que dados todos los cortes desde el 0 hasta el 1, en cada uno de los intervalos vamos a medir la Especificidad y la Sensibilidad. Esto nos va a dar un área que es el área bajo la curva ROC (AUC). Lo cual quiere decir que cuanto mayor sea nuestra área, mayor será la capacidad predictiva del modelo.  
+
+< /importante >  
+  
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+auc(df$response,predict(modelo_logit,df,type="response"))
+auc(df$response,predict(modelo_probit,df,type="response"))
+auc(df$response,predict(modelo_earth,df,type="response"))
+```
+
+Todos los modelos tienen un muy buen nivel de ajuste. Esto lo podemos confirmar viendo las distribuciones de los 1 y los 0 y los valores que hemos predicho. Este tipo de visualización nos ayuda a ver el punto de corte óptimo que tendríamos que meter en la probabilidad para maximizar las diferencias entre 0 y 1. En este problema lo que estamos visualizando es que los 0 los estamos captando muy bien, sin embargo, los 1 (cuando la persona se cae) recibe una probabilidad más elevada, pero no está concentrada alrededor de la probabilidad 1. 
+
+
+```{r results='asis', size="small"}
+predict<-predict(modelo_probit,df,type="response")
+ggplot(df, aes(x =predict , fill = as.factor(response))) +  geom_density(alpha = .5)
+```
+
+## 5.3.7 Estrategia ante la modelización GLM.
+  
+Para finalizar el apartado voy a recapitular los pasos que hemos ido dando para confeccionar un buen modelo.
+
+1. Creación de una buena base de datos con información interna y externa.
+2. Decisión sobre el tipo de datos que seguirá nuestra variable respuesta condicionada a las variables explicativas.
+3. Qué función / funciones Link vendría bien meter en este modelo.
+4. Métodos de selección de variables.
+5. Ajuste de variables frente a no linealidades.
+6. Evaluación de los residuos del modelo. Normalidad, Independencia, Homocedasticidad.
+7. Poder predictivo del modelo y comparativa contra otros modelos.
+
+**¿Ya sabemos todo sobre cómo hacer un muy buen modelo lineal?**  
+  
+Aún quedan algunos aspectos que tendremos que tener en cuenta. 
+
+* Cuando hemos generado nuestro modelo, hemos calculado las betas con una base de datos y hemos visto el grado de ajuste con esa misma base de datos. ¿No podríamos coger otra base de datos para comprobar el ajuste?.
+  
+* Cuando hemos realizado el modelo, hemos tomado unas variables como dadas. ¿Le podemos meter al modelo algún tipo de parámetro que penalice cada variable que metemos de más?.
+  
+* Cuando hemos testado la autodependencia de los residuos, lo hemos hecho con un entorno estático o bien vistos a lo largo del tiempo. ¿Y si los residuos están relacionados espacialmente?.
+
+A estas cuestiones les vamos a dedicar un apartado especial.
+  
+  
+** IMPORTANTE - IDEAS CLAVE **
+
+* Cuando las hipótesis del modelo lineal Gaussiano no se cumplen, los modelos lineales generalizados nos ayudan a flexibilizar las asunciones iniciales. Al utilizar la función link junto con una distribución de probabilidad acorde a los datos que tenemos podemos conseguir un modelo robusto, consistente e insesgado, lo cual quiere decir resultados mucho mejores.
+* Una vez tengamos nuestro modelo lineal generalizado correctamente estimado tendremos que invertir las predicciones del modelo en función de la función link utilizada. 
+* Tanto si es un modelo lineal como un modelo lineal general debemos comprobar la heterocedasticidad y autocorrelación de los residuos para poder validar el modelo. 
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+save.image(file='t3.RData')
+```

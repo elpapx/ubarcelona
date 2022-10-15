@@ -1,0 +1,2051 @@
+
+---
+title:    "Tema 5. Técnicas Avanzadas de Predicción"
+author:   Miguel de la Llave
+date:     "`r Sys.Date()`"
+license:  by-nc-sa
+urlcolor: blue
+output:
+  word_document:  
+    toc: yes
+    reference_docx: template_style.docx
+  html_document: 
+    theme:        cosmo 
+    highlight:    tango 
+    css: mystyle.css
+    toc:          true
+    toc_float:    true
+    code_folding: show
+  epuRate::epurate:
+    toc:             TRUE
+    number_sections: FALSE
+    code_folding:    "show"
+  pdf_document:   default
+---
+
+# 5.0 Introducción
+
+El objetivo del presente tema es dar a conocer las técnicas y estrategias a poner en práctica a la hora de realizar una modelización correcta de un fenómeno. 
+
+Supongamos que trabajamos en el departamento de finanzas de un banco y necesitamos saber si un nuevo cliente es *propenso a impagar*, o en el departamento de marketing y necesitamos *identificar oportunidades de multiequipamiento*, o en el departamento de logística de una empresa de trasportes y necesitamos *patrones de buena conducción* , o en un equipo farmacéutico de *ensayos clínicos*, o una empresa aeronáutica nos pide analizar los *resultados procedentes de sensores* instalados en sus aviones, o en un equipo de investigación para analizar la *incidencia de un componente en el cáncer* ... Para todos estos casos, además de un correcto conocimiento de la materia particular de cada disciplina, es necesario conocer técnicas de predicción que nos ayuden a entender problemas y **tomar decisiones**.
+
+<center>
+![fig5.0.1](./figures/fig_5.0.1.jpg){width=100%}
+</center>
+Fuente de la Imagen: [Elaboración Propia]
+
+**¿Para qué necesitamos realizar una modelización?**
+  
+* Usando términos matemáticos, podemos plasmar la realidad de forma simplificada en una modelización. Es decir, la modelización es una herramienta para poder desmigar la realidad, a veces demasiado intrincada, y analizar sus partes.  
+  
+**¿Qué objetivos perseguimos cuando modelizamos?**
+  
+* Queremos entender el pasado: ¿por qué ha ocurrido un suceso *Y* repetidamente en una zona?
+* Explicar la relación entre variables: ¿De qué manera incrementa las ventas los anuncios publicitarios?
+* O bien queremos discriminar o clusterizar unos perfiles: ¿qué clientes son más sensibles a un tipo de publicidad?
+* o también podemos tener interés en predecir: ¿qué clientes serán más susceptibles de impagar?
+  
+Para todo ello utilizaremos técnicas matemáticas diversas. 
+  
+**¿Qué fases encontramos en el proceso de modelización?**
+  
+* Primero vamos a reconocer el problema.
+* Segundo veremos si tenemos información relevante para resolver este problema.
+* Formalizamos matemáticamente. Construimos ecuaciones y trabajamos las variables.
+* Resolvemos el problema matemático.
+* Interpretamos el resultado y validamos el modelo.
+  
+Este proceso resultará familiar a quien haya trabajado antes con el método científico porque es muy similar: trabajando los datos disponibles contestamos una pregunta y extraemos conclusiones. 
+  
+**Importante**  
+Vamos a construir modelos probabilísticos o estocásticos.  
+$$ \text{Modelo determinista:   }Y=f(X) $$
+$$ \text{Modelo Estocástico:   }Y=g(X,u) $$
+Donde u es una variable aleatoria no observable y g es una funcion. 
+  
+  
+# 5.1 Preparación del tablón de modelización. 
+  
+Antes de comenzar el trabajo de modelizado y una vez definido el problema que queremos resolver, necesitamos:
+
+1. *Datos* -> En esta sección abordaremos cómo crear un buen tablón de modelización.
+2. *Herramientas* -> Software para tratar y manipular información. [Durante este tema el código que veremos será en R.]
+3. *Conocimiento* -> Sobre técnicas y algoritmos para poder sacar conclusiones veraces y robustas.
+
+<center>
+![fig5.0.2](./figures/fig_5.0.2.jpg){width=50%}
+</center>
+Fuente de la Imagen: [Elaboración Propia]  
+  
+**¿Cual es nuestro punto de partida?**
+
+Partimos de unos datos, bien sean internos o externos. Dichos datos proporcionan un resultado empírico de lo que ya ha ocurrido o de algo que ya existe. Ahora tenemos que prepararnos para la modelización de los mismos.  
+Disponemos de:  
+  
+* Variables Explicativas/Exógenas: Las variables que tenemos disponibles para explicar. Las utilizaremos como información para ver su relación con la variable explicada.
+* Variable Explicada/Endógenas: La que queremos predecir. Nuestra variable respuesta.
+
+## 5.1.1 Preprocesado de datos
+
+La cruda realidad: los datos nunca vienen limpios. **¡¡NUNCA!!**
+
+* *Inconsistencias*: Diferentes métricas en una misma variable (metros / kilómetros / tiempo dentro de una misma variable).
+* *Errores*: Valores vacíos o sin sentido.
+* *Sin Fundamento*: Necesitan un suavizado antes de poder utilizarlos.
+  
+<center>
+![fig5.0.3](./figures/fig_5.0.3.jpg){width=30%}
+</center>
+Fuente de la Imagen: [https://bit.ly/2GEahRv](https://bit.ly/2GEahRv)
+  
+Una vez tengáis el problema en la cabeza para resolverlo, dedicad horas a meteros en los datos, bucead en los datos en busca de errores, de detalles que puedan viciar el resultado posteriormente. El tiempo dedicado en este apartado puede resultar tedioso, pero todo depende de esto. *Si tenemos datos malos, el resultado va a ser malo* por muy buena que sea la técnica utilizada para modelizar. 
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+source("./Data/Functions.R")
+```
+
+--- 
+  
+**BBDD1: Super Online**
+  
+Contamos con los DATOS de una empresa de compras online (supermercado online). Esta empresa cuenta con poca información sobre sus clientes, puesto que no quiere avasallarlos con cuestionarios ni llamadas. En los próximos capítulos veremos si esta información de que disponemos es interesante. Contamos con:  
+
+* Compras: Compras medias durante el último año de la persona en la empresa.
+* Edad: Edad actual del cliente.
+* Antigüedad: Número de años que lleva en la compañía el cliente.
+* Género: Indica si es Varón o Mujer.
+* Ingresos: Variable externa comprada a un servicio de business analytics que proporciona ingresos estimados de cada persona al mes.
+* Long: Longitud del domicilio del cliente.
+* Lat: Latitud del domicilio del cliente.  
+  
+  
+<center>
+![fig5.1.5](./figures/fig_5.1.5.jpg){width=20%}
+</center>
+Fuente de la Imagen: [www.periodicopalacio.com](https://www.periodicopalacio.com/principal/comercio-a-traves-de-dispositivos-moviles-seguira-en-aumento-en-2019/)  
+  
+**Objetivo**: El objetivo que tiene la empresa es el de modelizar la variable COMPRAS con las diferentes variables explicativas que contamos. Con esta modelización, podrá definir campañas de marketing en el futuro y ofrecer selectivamente descuentos y promociones a aquellos clientes más fidelizados por importe. 
+  
+* ¿Consumen todos los perfiles más o menos por igual?
+* ¿Qué perfiles harán mayores compras en el futuro?
+* ¿A qué perfiles tenemos que dirigirnos para ofrecer los productos?
+* ¿A quién deberían ir dirigidas las campañas de marketing?
+  
+  
+```{r results='asis', size="small"}
+tabla<-read.csv("./Data/table_5.01.csv",sep=",")[,-1]
+pander(head(tabla), split.cell = 70, split.table = Inf,digits=2)
+```
+  
+---
+
+  
+Vamos a seguir el siguiente árbol:
+  
+1. Verificar si hay registros duplicados. Dejar registros únicos.
+2. Verificar consistencia de datos.
+    + Si hay demasiadas inconsistencias en una variable - Eliminamos Variable
+    + Si podemos resolverla a mano con alguna regla - Modificamos Variable
+    + Si no podemos resolverlo a mano - Contemplamos como NA
+3. Tratamiento de los Missing Values
+    + Si hay demasiados NAs en una variable - Eliminamos Variable
+    + Si los NAs son consistentes en registros determinados - Eliminamos Registros
+    + Si hay pocos (5%-10%), establecemos regla para rellenarlos
+    + Rellenamos con un aleatorio dentro de la distribución de la variable. Sencillo.
+    + Rellenamos con un valor medio. Sencillo.
+    + Rellenamos con un modelo de regresión: con los registros que tienen información correcta intentamos estimar aquellos que no tienen información.
+4. ¿Hay información correlacionada? -> Eliminamos variables redundantes. [*vid. infra* punto 5.1.3]
+5. ¿Necesitamos transformar alguna variable? -> ¡Buscamos el sentido estadístico! ¿Nos interesan todos los datos? [*vid. infra* punto 5.1.3].
+  
+Los pasos 1-2-3 se han visto a lo largo de otros temas previos al máster. Por lo tanto, nos centramos en los pasos 4-5. Asumimos una base de datos trabajada y corregida anteriormente.  
+  
+## 5.1.2 Completamos la base de datos
+
+La estrategia de datos dentro de una empresa es fundamental para definir la dirección que queremos que tomen los proyectos. Tanto la calidad como la cantidad de datos toman un papel clave en el posicionamiento de la empresa. Tener información de calidad nos proporciona una capacidad de aprendizaje y de análisis inigualable. A su vez nos posiciona fuertes frente a los competidores, en un mercado cada vez más ágil y desarrollado.
+  
+*Supongamos* una empresa aseguradora de coches, cuya misión "analítica"" es la de discriminar a aquellos clientes que van a tener siniestros de los que no van a tener. Cuanta más información tenga sobre los clientes, mejor podrá predecir quienes de ellos van a ser rentables y quienes no. Igualmente, la competencia hará lo mismo para intentar predecir aquellos perfiles más interesantes económicamente. Por lo que se produce una *guerra por el dato de calidad* que posicione a la empresa en un nivel de competitividad elevado. A los perfiles que inetresen a la empresa se les ofrecerá mejores precios, y, a los perfiles que inetresen menos, malos precios elevados.  
+
+Vamos a distinguir ahora entre **información externa e interna**. La **información externa** será siempre mucho más amplia que la información interna que tengamos, pero esto puede ser un arma de doble filo: hay que seleccionar bien la información que queremos trabajar, no siempre es mejor tener grandes cantidades de información si esta no va a ser relevante a nuestras intenciones, o si finalmente obtenemos tanta información que resulta abrumadora para trabajar bien los datos; sin embargo, la información externa existe y está ahí, no debemos olvidarla como recurso. Para obtenerla, podemos recurrir a distintas técnicas: compra de datos, APIs o Scrapping.
+
+No obstante, nos vamos a detener un momento en una pieza de **información interna** que se encuentra a disposición de todas las empresas hoy en día, y que ha sido tradicionalmente infravalorada, pero que ofrece grandes posibilidades en cuanto a análisis. Nos estamos refiriendo a **la dirección o el código postal del cliente** y que merece saber explotarse para sacarle el máximo beneficio posible. 
+Conociendo la localización del cliente:
+
+- Sabemos la distancia entre puntos de venta y cliente.
+- Posición económica del cliente y sus alrededores.
+- Hábitos y comportamiento del cliente.
+- Estilo de vida del cliente. 
+- Qué le rodea a tu cliente.
+
+Recordamos que uno de los objetivos de la **modelización** es Explicar la relación entre variables:   
+- ¿De qué manera incrementan las ventas los anuncios publicitarios?
+- ¿Incrementa la probabilidad de asistir a urgencias el hecho de vivir cerca de un hospital?
+- ¿Afecta al precio de la vivienda vivir cerca de una oficina bancaria?
+- ¿Es mayor el precio de la gasolina en zonas donde hay pocas gasolineras?
+
+Resulta sencillo utilizar como datos la dirección o código postal del cliente y los servicios que se encuentran a su alrededor para crear modelos que expliquen estas relaciones. Veamos, pues, una **herramienta** que puede ayudarnos en este cometido.Os presento **Open Street Maps**. Es una herramienta que nos va a ayudar a incorporar mucha información espacial en nuestra base de datos. 
+
+Simplemente vamos a descargar los centros comerciales de Madrid para agregar sus referencias geográficas a nuestra base de datos con la que estamos trabajando. Vosotros podéis descargar toda la información que queráis a través de los siguientes enlaces:    
+  
+[Open Street Map](https://es.wikipedia.org/wiki/OpenStreetMap).   
+
+[Cómo buscar info en OSM](https://wiki.openstreetmap.org/wiki/Map_Features).    
+  
+No bajéis información en exceso. Primero pensad la información que tiene sentido estadístico meter en los modelos que a continuación veremos (es mejor tener menor cantidad de datos pero relevantes, que mucha información que nos resulte abrumadora).
+  
+```{r warning=FALSE,message=FALSE}
+#Nos vamos a descargar la localización de los cc de Madrid. 
+datos<-Descarga_OSM(ciudad="Madrid, Spain",key='shop',value = "mall")
+#leaflet(datos[[1]]) %>% addTiles() %>% addPolygons(data = datos[[2]], col = "red",label =datos[[3]] ) %>% addCircles()
+```
+<center>
+![fig5.0.4](./figures/fig_5.0.4.jpg){width=100%}
+</center>
+
+Esta información la podemos adjuntar a nuestra base de datos de multitud de formas. 
+
+* Podemos plantear la distancia mínima de cada persona a un centro comercial (Dist_Min)
+* Podemos plantear número de centros comerciales en un radio de 4km. Es decir, la densidad de centros comerciales en dicho radio. (Dens)
+  
+El paquete geosphere te da un cálculo de distancias entre puntos euclídeo corregido por la curvatura de la tierra. Hay muchos otros paquetes o APIs que te devuelven la distancia tanto en kilómetros como en tiempo entre dos puntos. Aquellas que consiste en llamar a una API son mucho más exigentes en tiempos computacionales, así que hay que valorar a priori la que elegimos. Yo os dejo aquí una forma de hacerlo con la función "distm".
+  
+```{r}
+#Adjuntamos la informacion
+coordenadas<-as.data.frame(gCentroid(datos[[2]], byid=TRUE)@coords)
+Distancias<-distm(cbind(tabla$LONG,tabla$LAT),cbind(coordenadas$x,coordenadas$y),fun = distCosine )/1000
+tabla$Dist_Min<-round(apply(Distancias,1,min),1)
+tabla$Dens<-apply((Distancias<4)*1,1,sum)
+
+pander(head(tabla), split.cell = 60, split.table = Inf,digits=2)
+```
+
+Para nutrir la base de datos, también me voy a bajar información de hospitales de Madrid. 
+
+```{r warning=FALSE,message=FALSE}
+#Nos vamos a descargar la localización de los cc de Madrid. 
+datos_hospitales<-Descarga_OSM(ciudad="Madrid, Spain",key='building',value = "hospital")
+
+coordenadas<-as.data.frame(gCentroid(datos_hospitales[[2]], byid=TRUE)@coords)
+Distancias<-distm(cbind(tabla$LONG,tabla$LAT),cbind(coordenadas$x,coordenadas$y),fun = distCosine )/1000
+tabla$Dist_Min_h<-round(apply(Distancias,1,min),1)
+tabla$Dens_h<-apply((Distancias<4)*1,1,sum)
+```
+
+
+## 5.1.3 Últimos pasos antes de modelizar.
+
+Recordamos, nuestro OBJETIVO con la base de datos es la de predecir las COMPRAS, por lo tanto, nuestros esfuerzos en dejar la base de datos preparada irán con foco en COMPRAS.
+
+Verificamos la correlación (Pearson) de las variables: 
+
+$$ r = \frac{\sum{xy}}{\sqrt{\sum x^2 \sum y^2}} $$
+
+Donde x e y son el conjunto de variables que estamos analizando.  
+  
+Más adelante veremos la razón por la que es tan importante verificar correlaciones antes de modelizar.  En el caso de encontrar variables totalmente correlacionadas, las buenas prácticas aconsejan deshacernos de una de ellas antes de empezar a modelizar, puesto que estaríamos incluyendo información redundante en el modelo y podríamos incumplir las hipótesis de partida en las que se basa la regresión, además de que las concluiones del modelo podrían llevarnos a equívoco.  
+  
+Ejemplos de correlaciones que podriamos encontrar en un dataset:
+
+* Edad y Antiguedad del carnet de conducir
+* Precio del Petróleo y Precio de la Gasolina
+* Número de ventas y Número de clientes
+* Kilómetros recorridos y gasto en combustible
+  
+No es necesario tener la información de ambas variables explicativas para predecir un determinado suceso, con saber una de ellas nuestro modelo tendría información suficiente para sacar el mejor partido a la información.  
+Además, el análisis de correlaciones nos va a dar una intuición de aquellas variables más influyentes en nuestra variable respuesta/explicada (*COMPRAS*).  
+
+
+```{r  fig.align = "center"}
+# Visualizamos las variables que estamos contemplando. 
+#Encontramos grandes correlaciones sobre todo entre las variables descargadas Distancia Mínima y Densidad de Centros Comerciales. Con elegir una de las dos variables para la modelización bastará para 
+cr <- cor(tabla, use="complete.obs")
+ggcorrplot(cr, 
+           hc.order = TRUE, 
+           type = "lower",
+           lab = TRUE)
+
+```
+  
+Nuestro siguiente paso es el de realizar un análisis univariante de las variables en nuestra base de datos. Visualizaremos las variables en dos sentidos:  
+* Análisis de distribución: Histograma de la variable.
+* Relación de cada uno de los nodos de dicha distribución con respecto a la variable que queremos analizar: *COMPRAS*. Es decir, por cada una de las barras del histograma vamos a ver cómo se comporta la variable *COMPRAS*, de tal forma que podamos tener una idea *a priori* de la relación entre la variable explicada y las variables explicativas. 
+  
+Para ello os he preparado una función *Hist* que requiere de 4 inputs. El primero la tabla con la que estamos trabajando; el segundo, la variable respuesta que queremos inferir; tercero [aún no hemos llegado], si tuviésemos algún tipo de predicción de la variable respuesta; cuarto, la variable que queremos estudiar en un entorno univariante.  
+  
+
+```{r fig.width = 2}
+# Visualizamos las variables que estamos contemplando. Solo vamos a analizar las que nos interesa inicialmente 
+tabla1<-dplyr::select(tabla,-LONG,-LAT)
+for (i in 1:ncol(tabla1)){
+pr<-Hist(tabla1,response = tabla1[,1],predicted = 0,var = tabla1[,i],n=i,breaks = 10)
+plot(pr)
+}
+
+```
+  
+En los gráficos resultantes podemos ver más o menos las mismas conclusiones que nos daba el estudio de correlaciones. Sin embargo, nos llaman la antención 2 comportamientos:    
+1. La variable *EDAD* tiene una correlación positiva, sin embargo, en edades avanzadas, la gente tiende a gastar menos en sus compras online.  
+2. La variable *INGRESOS* tiene una distribución con cola larga. Quiere decir que hay muchos datos entre 200 y 2mil euros, pero luego tenemos también datos hasta cantidades de dinero desorbitadas. Ante esto tenemos que proponer una solución. No es lo mismo pasar de ganar 200 euros al mes a 400 euros, que de 30.000 a 30.200. En teoría el efecto (comprar más de lo que ya compraba) en el consumidor va a ser practicamente despreciable en el segundo caso, mientras en el primero que está multiplicando por dos sus ingresos, puede que tenga un efecto importante. 
+   
+**Entonces, ¿Cómo podemos corregir la variable?**  
+
+Tenemos tantas opciones como reescalados de la variable se nos ocurran.  
+  
+**Pero, ¿Qué es reescalar una variable?**  
+
+Pues transformar la variable con cualquier tipo de función que se nos ocurra que tenga sentido matemático y económico.
+  
+**¿Por ejemplo?**  
+
+$$ variable.reescalada = ln(variable.original) $$
+  
+Aunque no hayamos comenzado aún a adentrarnos en el terreno de la regresión, creo que es importante remarcar un aspecto que más tarde necesitaréis. Cuando reescalamos una variable para entender mejor un proceso o sacar mejor partido a los datos, estamos modificando el proceso entero de modelización y la manera de interpretar el resultado cambia.
+
+Si nuestro modelo es $$ Y=X\beta $$
+Si no hacemos ningún reescalado entonces  $$ \Delta Y=\beta \Delta X $$
+Si reescalamos la X  $$ \Delta Y=(\beta /100) \Delta X \% $$
+Si reescalamos la Y  $$ \Delta Y\%=100\beta \Delta X $$
+Si reescalamos la X e Y  $$ \Delta Y\%=\beta \Delta X \% $$
+
+**¿Puedes poner otro ejemplo de reescalado que no sean logaritmos?**   
+
+$$ variable.reescalada.normalizada = \frac{variable.original-\mu}{\sigma} $$
+Siendo $\mu$ la media y $\sigma$ la desviación típica.  
+  
+Como más de uno estará suponiendo a estas alturas, el reescalado puede dar como resultado datos depurados que nos aportarán informaicón valiosa, o datos que lleven a engaño o imprecisiones. Queda a criterio del analista aplicar reescalados que tengan sentido económico o de negocio. Utilizad el buen criterio y conocimiento previo que tengáis sobre los datos para aplicar modificaciones sobre los mismos.  
+   
+En nuestro caso vamos a aplicar el logaritmo neperiano a la variable *INGRESOS*. De momento la vamos a dejar calculada, para cuando llegue el momento de **modelizar** para poder ver si la variable bruta tiene más o menos sentido que la variable reescalada con su logaritmo natural. 
+
+```{r }
+# Visualizamos las variables que estamos contemplando. Solo vamos a analizar las que nos interesa inicialmente 
+tabla$Log_Ing<-log(tabla$INGRESOS)
+pr<-Hist(tabla,response = tabla[,1],predicted = 0,var = tabla[,9],n=9,breaks = 10)
+plot(pr)
+
+```
+  
+## 5.1.4 Modelos supervisados Vs. modelos no supervisados.
+
+La mayoría de problemas estadísticos los podemos clasificar como *Supervisados* o *No Supervisados*. 
+  
+La característica fundamental de los modelos *Supervisados* es que para cada uno de los registros tenemos una variable respuesta asociada. Nuestro objetivo será crear un modelo que vincule la respuesta con los factores explicativos.  
+   
+Problemas Supervisados:  
+
+* Predecir si determinados pacientes tienen una enfermedad basándonos en su historial clínico.
+* Predecir los crímenes de cada ciudad europea basándonos en el gasto social.
+* Predecir el número de siniestros de coche basándonos en las características del coche.
+   
+   
+Los modelos *No Supervisados* por el contrario carecen de variable respuesta. En estos modelos buscamos poder entender la relación entre variables o entre observaciones de nuestros datos.  
+   
+Problemas No Supervisados:   
+
+* Segmentación de los clientes de una compañía basándonos en su perfil.
+* Simplificación de un cojunto de datos con aributos similares.
+* Detección de "outliers" que no encajan en ningún perfil determinado.  
+
+
+<center>
+![fig5.0.5(bis)](./figures/fig_5.0.5(bis).jpg){width=100%}
+<center>
+Fuente de la Imagen: [Elaboración Propia]  
+  
+## 5.1.5 Problema de Regresión vs Problema de Clasificación
+  
+En este tema nos vamos a centrar en aprender técnicas supervisadas, en concreto de regresión y clasificación (a través del modelo lineal). Normalmente nos referimos a *técnicas de regresión* cuando la variable respuesta, es decir, la variable que queremos explicar o predecir a través de otras variables es cuantitativa. Una *variable cuantitativa* es aquella que contiene valores numéricos (Precio de la Vivienda, Número de casos de Covid, Tasa de Paro).
+Cuando nos referimos a *técnicas de clasificación*, es porque la variable respuesta es *cualitativa*, que quiere decir categórica o que contiene clases. (Tipos de fruta, Género, Colores). Cuando la variable que queremos predecir es binaria, también consideramos dicho problema como problema de clasificación. (Si,No / 1,0)
+
+<center>
+![fig5.0.5(bis_bis)](./figures/fig_5.0.5(bis_bis).jpg){width=100%}
+<center>
+Fuente de la Imagen: [Elaboración Propia] 
+  
+# 5.2 Modelos de Regresión Lineal
+  
+El objeto de todos los modelos estadísticos que vamos a ver a lo largo del tema consisten en:
+
+1. **Especificar un modelo**
+2. **Estimación del modelo**
+3. **La mejor especificación**
+4. **La súper mejor especificación**
+5. **Validación del modelo**
+
+## 5.2.1 Especificación del modelo
+
+**Especificar un modelo**: Nuestro objetivo es definir la relación entre unas variables (Explicativas) y una variable (Explicada) a través de unas ecuaciones y unos parámetros. Podremos utilizar este modelo para explicar un comportamiento ya sucedido, o para predecir un comportamiento en el futuro.  
+  
+Predictores: Nuestras variables explicativas. (EDAD,ANTIGUEDAD,INGRESOS...)
+$$ Predictores -> X=(X_1,X_2,...,X_p) $$
+  
+Respuesta: Nuestra variable a explicar. (COMPRAS)
+$$ Respuesta -> Y $$
+  
+Parámetros: Coeficientes que expresan la influencia de las variables explicativas sobre la Respuesta. Son los coeficientes desconocidos que tendremos que estimar. 
+$$ Parámetros -> \beta=(\beta_1,\beta_2,...,\beta_p) $$
+Donde p es el número de variables que tenemos para explicar Y.
+  
+Ecuación: La relación matemática. 
+$$ Ecuación -> (Y)_{nx1}\approx\hat{(Y)}_{nx1}= (X)_{nxp}(\beta)_{px1} $$
+Donde n es el número de datos que tenemos y $\hat{(Y)}$ es Y estimada. 
+
+O lo que es lo mismo:  
+$$ Ecuación -> y_i \approx \hat{y_i} = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + \cdots + \beta_k x_{pki} $$
+Donde i es la observación i-ésima.  
+
+**¿Qué es el $\beta_0$ ?**  
+
+Es un parámetro que afecta a todos los registros por igual. $\beta_0$ está multiplicando a un vector de unos (1). Es decir, en nuestro modelo lineal es un valor de origen para todas las observaciones de la base de datos.  
+
+  
+**¡OJO! ¿Por qué ponemos $$\approx$$ en lugar de = en la ecuación?**  
+
+1. Porque las betas $\beta$ nos van a dar una aproximación a la realidad. 
+2. Si las estimamos bien, serán la mejor aproximación a la realidad posible con la información disponible.
+3. Pero **SIEMPRE SIEMPRE** va a haber un término que va a ser el error / perturbación. 
+4. El error es lo que nos equivocamos al predecir.
+
+$$ Error -> u_i = y_i - \hat{y_i} = y_i - (\beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + \cdots + \beta_k x_{pki}) $$
+  
+Entonces, la suma de errores al cuadrado, nos dirá como de bueno es nuestro modelo. 
+
+$$ Suma Residual-> SR=\sum_{i=1}^n u_i^2=\sum_{i=1}^n(y_i - \hat{y_i})^2  $$
+
+**¿Puede que no haya error en nuestro modelo?**  
+  
+NO. Siempre hay algo de error.  Siempre debe de haber algo de error. 
+Si no tienes error, entonces:
+* Tu modelo está sobre-estimado.
+* Valdrá para explicar pero no para predecir.
+* No aporta nada adicional a los datos brutos que teníamos en un primer momento.
+
+<center>
+![fig5.0.6](./figures/fig_5.0.6.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.towardsdatascience.com](https://towardsdatascience.com/underfitting-and-overfitting-in-machine-learning-and-how-to-deal-with-it-6fe4a8a49dbf)  
+  
+Con esto ya podemos especificar el modelo para predecir el comportamiento de los clientes.
+
+```{r }
+# Establecemos la formula para  más adelate modelizar. 
+formula<-as.formula('COMPRAS~EDAD+ANTIGUEDAD+GENERO+INGRESOS+Dist_Min')
+formula
+```
+
+**¿Por qué no otra especificación?**   
+
+Primero vamos a ver cómo se estiman los parámetros de nuestro modelo y una vez lo tengamos generado, vamos a ver los análisis correspondientes para encontrar la mejor especificación. Pero de momento vamos a empezar con esta. Razones: Por nuestra intuición, por nuestro conocimiento de negocio y por los análisis previos hechos. 
+
+
+## 5.2.2 Estimación de los parámetros
+
+El objetivo de la sección es suministrar métodos que permitan determinar el valor de los parámetros de un modelo con precisión. Recordamos que estamos trabajando con muestras y nuestro objetivo es conocer el parámetro poblacional con el estimador muestral. De nada nos vale conocer el estimador para una muestra concreta, pero que falle para nuevas muestras poblacionales.   
+  
+**Objetivo**: Realizar una estimación de la función de regresión poblacional dada una muestra determinada.   
+  
+<center>
+![fig5.0.7](./figures/fig_5.0.7.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.goconqr.com](https://www.goconqr.com/en/p/20844639)  
+  
+**¿Cómo tiene que ser un estimador?**  
+
+* Será **insesgado** o centrado si la esperanza del estimador es igual al valor del parámetro real.
+
+$$ E[\hat{\beta}]=\beta $$
+* Será **eficiente** si la varianza de dicho estimador es la mínima.
+* Será **consistente** si al incrementar el tamaño muestral, el estimador se aproxima al valor del parámtro real. 
+  
+##### **Método de los Mínimos Cuadrados Ordinarios** 
+
+Consiste básicamente en minimizar la suma de cuadrados de los residuos SR.
+
+$$ \begin{align}
+SR=U^tU=(Y-X\beta)^t(Y-X\beta)=Y^tY-2\beta^t X^tY+\beta X^t X \beta \\
+\frac{\partial SR}{\partial \beta}=-2X^tY+2X^tX\beta=0 \\
+\beta=(X^tX)^{-1}X^tY \\
+ \\
+Siendo: \\
+Var(\beta)=\sigma_u^2(X^tX)^{-1} \\
+ \\
+Donde: \\
+\sigma_u^2=\frac{U^tU}{n-p} \\
+\end{align} $$
+
+Asumiendo que los residuos se distribuyen como una normal.  
+  
+Como podéis ver, si incluimos un parámetro más (una variable nueva) dentro de nuestra ecuación (especificación), dado que nos encontramos ante un problema multidimensional, todas las betas se recalcularán.  
+  
+Primero lo hacemos a mano. Estimación de las betas de nuestro modelo:
+```{r }
+# Multiplicando Matrices
+X<-as.matrix(cbind(Intercept=rep(1,nrow(tabla)),dplyr::select(tabla,EDAD,ANTIGUEDAD,GENERO,INGRESOS,Dist_Min)))
+Y<-as.matrix(tabla$COMPRAS)
+
+betas_a_mano<-as.numeric(solve(t(X)%*%X)%*%(t(X)%*%Y))
+dt_a_mano<-diag(as.numeric((t(Y-X%*%betas_a_mano)%*%(Y-X%*%betas_a_mano))/(nrow(X)-ncol(X)))*solve(t(X)%*%X))**0.5
+tvalue_a_mano<-betas_a_mano/dt_a_mano
+
+tab<-as.data.frame(cbind(betas_a_mano,dt_a_mano,tvalue_a_mano))
+pander(tab, split.cell = 80, split.table = Inf)
+```
+
+Y Ahora utilizando la función de R lm
+```{r warning=FALSE,message=FALSE}
+# Utilizando Lineal Model 
+modelo1<-lm(formula = formula,data =tabla)
+pander(summary(modelo1))
+```
+
+**¿Cómo interpretamos las betas?**  
+
+Básicamente nuestra estimación sobre la variable respuesta (COMPRAS) va a ser igual a la suma de cada variable explicativa por su beta correspondiente. Cuando es positiva, un incremento en la variable incrementa las COMPRAS. Cuando es negativa, un incremento en la variable decrementa las COMPRAS. 
+
+$$ \hat{Compras}=1\beta_1+Edad\beta_2+Antiguedad\beta_3+...+Dist.Min\beta_6 $$
+
+**¿Cómo interpretamos el t value?**  
+
+Es la medida que nos dice cuantas desviaciones estandard nuestra beta está alejada de 0 y por lo tanto, tiene sentido tener dicha variable dentro del modelo. 
+
+
+##### **Método de Máxima Verosimilitud** 
+
+El método de máxima verosimilitud es otro método de estimación. Se basa en el supuesto del tipo de distribución que sigue el término del error del modelo estadístico. Y a partir de ahí vamos a buscar los parámetros que hacen más probable que dichos residuos provengan de esa distribución. 
+
+$$ \begin{align}
+f(u)=\frac{1}{(2\pi\sigma^2)^{0.5}}e^{-\frac{U^tU}{2\sigma^2}} \\
+L=\frac{1}{(2\pi\sigma^2)^{\frac{n}{2}}}e^{-\frac{(Y-X\beta)^t(Y-X\beta)}{2\sigma^2}} \\
+ln(L)=-\frac{nln(2\pi)}{2}-\frac{nln(2\sigma^2)}{2}-\frac{(Y-X\beta)^t(Y-X\beta)}{2\sigma^2} \\
+\frac{\partial Ln(L)}{\partial \beta}=-\frac{-2X^t(Y-X\beta)}{2\sigma^2}=0  \\
+\\
+Siendo: \\
+Var(\beta)=\sigma_u^2(X^tX)^{-1} \\
+ \\
+Donde: \\
+\sigma_u^2=\frac{U^tU}{n} \\
+\end{align} $$
+
+**La ecuación revela que bajo el supuesto de normalidad del término del error, el estimador es equivalente al obtenido con el método de mínimos cuadrados ordinarios, sin embargo, la varianza del estimador difiere ligeramente y solo coinciden cuando n es suficientemente grande**
+  
+En el próximo capítulo nos meteremos más a fondo en los GLM. De momento solamente para observar las diferencias con respecto a LM, os pongo los resultados que nos daría utilizando la función GLM que resuelve el problema de la máxima verosimilitud con el método numérico de: Iterative Weighted least squares.  
+
+```{r }
+# Utilizando glm
+modelo2<-glm(formula = formula,data =tabla,family=gaussian)
+pander(summary(modelo2))
+```
+  
+## 5.2.3 La mejor especificación
+
+Como decíamos antes, hemos empezado con una especificación particular a criterio totalmente nuestro. ¿Era esta "fórmula" nuestra mejor especificación?  
+
+Es muy importante el conocimiento de negocio, de los datos y del sentido que le queremos dar al modelo; **sin embargo**, permitidme dudar que, a la primera, consigamos tener la mejor especificación del modelo.  
+
+```{r }
+#Especificación Inicial
+formula
+#Variables que podemos incluir en el modelo
+colnames(tabla)
+```
+
+**¿Hay alguna técnica que nos ayude a identificar la mejor especificación?**  
+  
+Sí. Hay un conjunto de técnicas que nos ayudan a escoger un subconjunto reducido de las "p" variables que teníamos al comenzar nuestro estudio.
+  
+Primero y fundamental, saber los indicadores más habituales para comparar modelos. Estos indicadores ofrecen una métrica de cómo es el grado de ajuste del modelo dadas un número de variables explicativas dentro de él. 
+
+1. AIC (Akaike Information Criteria): 
+
+$$ AIC=\frac{SR+2p\sigma^2}{n\sigma^2} $$
+Cuanto menor sea, mejor será el ajuste de nuestro modelo. Fijaros que penaliza tanto la suma de residuos al cuadrado como el número de variables que estamos utilizando.
+
+2. BIC (Bayesian Information Criteria): 
+
+$$ BIC=\frac{SR+p\sigma^2ln(n)}{n} $$
+Cuanto menor sea, mejor será el ajuste de nuestro modelo. Igualmente penaliza tanto la suma de residuos al cuadrado como el número de variables que estamos utilizando.
+
+3. R Cuadrado Ajustado/Corregido (Coeficiente de determinación):
+
+$$\begin{align}
+R^2_a=1-\frac{\frac{SR}{n-p-1}}{\frac{(Y-\bar{Y})^t(Y-\bar{Y})}{n-1}} \\
+\\
+Donde:\\
+\bar{Y}=\frac{\sum(Y)}{n} 
+\end{align} $$
+
+
+Cuanto mayor sea, mejor será el ajuste de nuestro modelo. Nuevamente que penaliza tanto la suma de residuos al cuadrado como el número de variables que estamos utilizando.
+
+**Método de selección Stepwise**  
+  
+El método consiste en probar distintas combinaciones de variables. Para ello utilizamos dos métodos:
+
+* **Método Forward**: Empezamos por un modelo sin variables y vamos añadiendo una en cada paso del método. Al finalizar el bucle el algoritmo elige el mejor modelo basado en lo que nosotros queramos (BIC/AIC/R).
+  
+* **Método Backward**: Empezamos por un modelo con todas las variables y vamos quitando una en cada paso del método. Al finalizar el bucle el algoritmo elige el mejor modelo basado en lo que nosotros queramos (BIC/AIC/R).
+  
+Aquí os lo explico paso a paso.  
+
+<center>
+![fig5.0.8](./figures/fig_5.0.8.jpg){width=100%}
+<center>
+Fuente de la Imagen: [Elaboración Propia]
+
+  
+Para los más perfeccionistas, también hay métodos que calculan el mejor modelo comparando todas las combinaciones de modelos posibles. El problema es el consumo computacional que requiere esto. También hay propuestas híbridas entre forward y backward en la que cuando se añaden nuevas variables al modelo, también se eliminan basándose en p-valores de las variables.
+  
+Vamos a utilizar la función StepAIC con nuestro ejemplo para ver la especificación que nos recomendaría. Para ello tenemos que darle a la función, el modelo completo/vacío + todas las variables para que la función contenga todas las variables explicativas que queremos testar. El algoritmo va a tomar decisiones siempre en base al AIC del modelo.
+
+```{r }
+formula_completa<-as.formula('COMPRAS~EDAD+ANTIGUEDAD+GENERO+INGRESOS+Dist_Min+Dens+Dist_Min_h+Dens_h+Log_Ing')
+modelo_completo<-glm(formula =formula_completa ,data =tabla,family=gaussian)
+modelo_vacio<-glm(formula =COMPRAS~1 ,data =tabla,family=gaussian)
+```
+
+Primero realizamos backward. Nos sugiere eliminar la variable INGRESOS y sustituirla por el LOG_INGRESOS y además eliminar la variable densidad de supermercados y Distancia mínima a un hospital. 
+  
+```{r }
+backward<-stepAIC(modelo_completo,trace=FALSE,direction="backward")
+backward$anova
+```
+
+Segundo realizamos forward. Nos sugiere quedarnos con exactamente la misma especificación.
+  
+```{r }
+forward<-stepAIC(modelo_vacio,trace=FALSE,direction="forward",scope=formula_completa)
+forward$anova
+```
+
+Por último, aunque ya no haría falta, vamos a probar el modelo híbrido. 
+
+```{r }
+both<-stepAIC(modelo_vacio,trace=FALSE,direction="both",scope=formula_completa)
+both$anova
+```
+  
+Este tipo de algoritmos de decisión en la selección de las variables son my útiles en la práctica. No solamente para encontrar la mejor especificación de nuestro modelo, sino para quitarnos mucho trabajo a la hora de ver que variables entrar en el modelo final. En nuestra base de datos, contamos con 10 variables. Hacer el análisis es sencillo relativamente. Cuando el problema de dimensionalidad crece, por ejemplo en bases de datos de más de 500 variables, es muy útil un simplificador en el camino que nos diga donde centrarnos y sobre todo qué descartar de antemano para no invertir recursos innecesarios. 
+
+<center>
+![fig5.0.9](./figures/fig_5.0.9.jpg){width=100%}
+<center>
+Fuente de la Imagen: [https://bit.ly/33MLZ0Y](https://bit.ly/33MLZ0Y) 
+  
+```{r }
+# Establecemos la formula para  más adelate modelizar. 
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD + GENERO + Log_Ing + Dens_h')
+# Utilizando glm
+modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+pander(summary(modelo_final))
+```
+
+**Hemos dado un gran paso para conocer el comportamiento de nuestros clientes.**  
+**Aún queda trabajo por hacer..... **   
+ 
+   
+## 5.2.4 La súper mejor especificación  
+  
+**Ojo**, hasta ahora hemos contemplado el mejor modelo lineal. Las mejores betas proporcionales para cada una de nuestras variables para predecir las COMPRAS. Problemas:
+
+(*conversaciones conmigo mismo*)
+
+**Pregunta**: ¿Es la vida lineal?  
+  
+**Respuesta**: Creo que no..... No tiene mucho sentido pensar que el cambio en comportamiento de una persona que tiene 20 y pasa a tener 30 es igual que el de una persona que tiene 60 y pasa a tener 70.  
+    
+**Pregunta**: ¿Podemos contemplar efectos no lineales en una regresión lineal?.  
+  
+**Respuesta**: Hay muchas maneras de contemplar no-linealidades a través de un modelo lineal.
+
+Aquí algunos ejemplos:  
+
+1. Añadiendo una variable control y metiéndola (añadiéndola) en el modelo. 
+
+$$ \begin{align}
+if.Edad>30.then.Nueva.Variable=1; \\
+else.Nueva.Variable=0;
+\end{align} $$
+
+2. Añadiendo una variable modificada no linealmente y metiéndola  (añadiéndola)  en el modelo. 
+    
+$$ \begin{align}
+Nueva.Variable=Edad^2;
+\end{align} $$
+  
+3. Contemplando diferentes pendientes (betas) para una misma variable. Para ello vamos a utilizar el paquete earth. 
+
+  
+**¿Que hace el paquete earth?**  
+
+Desarrolla la idea de "Multivariate adaptive regression splines (MARS)". Capturamos relaciones no lineales en los datos estableciendo puntos de corte. Los puntos de corte que nos dice MARS, es donde la beta cambia para una misma variable. 
+Lo implementamos en R y a continuación os lo explico:
+
+```{r }
+modelo_final<-earth(formula = formula,data =tabla,thresh=0.1)
+summary(modelo_final)
+```
+  
+El paquete nos está encontrando varias no-linealidades. Tenemos dos opciones. 
+
+1. Emplear el modelo que nos da earth tal cual.  
+2. Utilizar las no linealidades para seguir manejando nuestro modelo.  
+
+  
+**¿Pero qué está haciendo el paquete earth?**   
+
+Está desmigando cada variable y partiéndola en varios trozos para ver si cada uno de los trozos de la variable explican de forma diferente y significativamente.
+
+**Sobre todo y muy importante. Nos fijamos en aquellas variables cuyo coeficiente tiene el mismo signo**
+
+* **Mismo signo**: La beta cambia de tener pendiente positiva a negativa.
+* **Distinto signo**: La beta pasa a ser más suave o más agresiva, pero con el mismo signo.  
+  
+$$ \begin{align}
+     \text{Dist_Min} = 
+  \beta(2.6 - \text{x}) & \text{x} < 2.6, \\
+    \beta(\text{x} - 2.6) & \text{x} > 2.6
+  \\
+     \text{Edad} = 
+  \beta(57 - \text{x}) & \text{x} < 57, \\
+    \beta(\text{x} - 57) & \text{x} > 57
+ \end{align} $$
+  
+**La $$\beta$$ únicamente cambian de signo con la EDAD, por lo tanto voy a llevar dicho cambio a mi modelo**
+
+```{r }
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD + GENERO + Log_Ing + Dens_h')
+modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+
+tabla$EDAD_hasta_57<-((57-tabla$EDAD)<0)*0+((57-tabla$EDAD)>=0)*(57-tabla$EDAD)
+tabla$EDAD_despues_57<-((tabla$EDAD-57)<0)*0+((tabla$EDAD-57)>=0)*(tabla$EDAD-57)
+
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD_hasta_57 + EDAD_despues_57 + GENERO + Log_Ing + Dens_h')
+nuevo_modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+pander(summary(nuevo_modelo_final))
+
+```
+
+**¿Es mejor este nuevo modelo?**   
+
+Vamos a comprobarlo con nuestro AIC. ¿Es menor el AIC conseguido en nuestro nuevo modelo más sofisticado?
+
+```{r }
+if (AIC(nuevo_modelo_final)<AIC(modelo_final)){
+  print("El nuevo modelo mejora el ajuste")
+} else {
+  print("El nuevo modelo no mejora el ajuste")
+}
+```
+
+**¿Podemos visualizar lo que estamos haciendo por favor?**   
+
+Vamos a utilizar otra vez nuestra función **Hist** que anteriormente nos funcionaba para ver estructuras de datos. Ahora la vamos a utilizar para ver grado de ajuste de nuestros datos. En concreto de nuestra variable EDAD. 
+
+```{r fig.width = 5}
+tabla1<-dplyr::select(tabla,-LONG,-LAT)
+Hist(tabla1,response = tabla1[,1],predicted = predict(modelo_final,tabla1),var = tabla1[,2],n=2,breaks = 10)
+Hist(tabla1,response = tabla1[,1],predicted = predict(nuevo_modelo_final,tabla1),var = tabla1[,2],n=2,breaks = 10)
+```
+  
+Arriba el anterior ajuste. Compras Reales por Edad vs Compras Estimadas por Edad. A bajo el nuevo ajuste.
+
+Parece que nos convence nuestro modelo. Hasta ahora hemos:
+
+1. Depurado nuestra base de datos
+2. Alimentado con nuevas variables nuestra tabla
+3. Elegido con un método de selección de variables nuestros mejores factores
+4. Desmigado no-linealidades. 
+
+<center>
+![fig5.1.1](./figures/fig_5.1.1.jpg){width=100%}
+<center>
+Fuente de la Imagen: [https://bit.ly/33MLZ0Y](https://bit.ly/33MLZ0Y)
+  
+**!Siguiente paso !**
+**¿Podemos confiar en las predicciones de nuestro modelo?**
+
+## 5.2.5 Validación del modelo
+  
+Para poder hacer una valoración de si nuestro modelo puede ser utilizado para explicar y predecir faltan algunos pasos. Nos vamos a tener que adentrar en los residuos del modelo y hacer ciertas comprobaciones para asegurarnos de que todas las hipótesis de partida se cumplen.
+
+**¿Cumplen los residuos con la hipótesis de normalidad?**  
+
+Tanto en el histograma que ponemos a continuación como en el gráfico q-q plot podemos ver como los residuos parece que provienen de una distribución normal. Esto nos verifica que las betas que hemos obtenido están correctamente calculadas.
+
+**¿Tenemos que medir a ojo la normalidad de los residuos?** 
+
+No, también hay un contraste (Jarque Bera) que nos dice si los residuos se distribuyen como una normal utilizando el coeficiente de asimetría de los residuos calculados y la curtosis.(Solo utilizar para muestras grandes >500 datos)
+
+$$ \begin{align}
+JB=n(\frac{asimetria^2}{6}+\frac{(curtosis-3)^2}{24})\sim Chi^2 \\
+\\
+Donde:
+\\
+H0: X \sim N.la.serie.es.normal
+\end{align} $$
+
+
+```{r }
+layout(matrix(c(1,2),1,2,byrow=T))
+#Spend x Residuals Plot
+#plot(modelo2$resid~tabla$COMPRAS[order(tabla$COMPRAS)])
+#Histogram of Residuals
+hist(nuevo_modelo_final$resid, main="Histograma de residuos", ylab="Residuos")
+#q-qPlit
+qqnorm(nuevo_modelo_final$resid)
+qqline(nuevo_modelo_final$resid)
+#Jarque Bera
+jarqueberaTest(nuevo_modelo_final$resid)
+```
+
+Como podemos ver el estadístico nos dice que no debemos rechazar $$ H_0 $$. Por lo tanto aceptamos $$ H_0 $$. Así que nuestros residuos son normales. **! Grande Jarque Bera !**  
+  
+**¿Los residuos son independientes?** [Test Autocorrelación]
+
+Queremos demostrar que los residuos son independientes los unos de los otros. En el gráfico de dispersión de abajo podemos comprobar que no presentan patrón, pero para comprobarlo matemáticamente, podemos utilizar el contraste de Durbin Watson.  
+
+**!Los errores tienen que ser aleatorios¡**
+<center>
+![fig5.1.4](./figures/fig_5.1.4.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.kris-nimark.net](http://www.kris-nimark.net/Applied_Macro_2016/BaysianIntroSlides.pdf)
+  
+Necesitamos comprobar esto para asegurarnos de que no haya tendencia en los datos. Nuestro modelo puede ajustar de maravilla para unos datos fijos. Sin embargo, si notamos tendencia en los residuos, puede que a la hora de predecir, no acertemos ni una. 
+
+$$ \begin{align*} 
+H_0 &: \text{los errores son independientes.} \\ 
+H_1 &: \text{los errores no son independientes.}
+\end{align*}$$ 
+
+Después de aplicar el test podemos Aceptar la $$ H_0 $$. Quiere decir que los errores son independientes para nuestro modelo propuesto. 
+
+```{r }
+plot(nuevo_modelo_final$resid~tabla$COMPRAS[order(tabla$COMPRAS)],
+ main="COMPRAS x Residuos",
+ xlab="Compras", ylab="Residuos")
+abline(h=0,lty=2)
+
+dwtest(nuevo_modelo_final)
+```
+  
+**¿Los residuos tienen varianza constante?** [Test Homocedasticidad]
+
+Debemos chequear también que los errores tengan media 0 y que su varianza a lo largo de la serie estimada sea constante. La homocedasticidad es un criterio exigido en los modelos de regresión.  
+Para chequear que los errores tienen varianza constante vamos a hacer un gráfico parecido al anterior. Simplemente vamos a sustituir la variable COMPRAS real por la variable COMPRAS estimadas. 
+
+```{r }
+plot(nuevo_modelo_final$resid~predict(nuevo_modelo_final,tabla1),
+ main="Compras Estimadas x Residuos",
+ xlab="Compras Estimadas", ylab="Residuos")
+abline(h=0,lty=2)
+```
+
+Podemos ver que el comportamiento es muy parecido lo que pronostica que no hay heterocedasticidad. Los residuos tienen que parecer RUIDO BLANCO.  
+  
+**¿Qué es el ruido blanco?**
+<center>
+![fig5.1.2](./figures/fig_5.1.3.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.microsiervos.com](https://www.microsiervos.com/archivo/curiosidades/por-que-ruido-blanco-llama-blanco.html)
+  
+**¿Hay test matemático?**  
+
+Of course!. Breusch and Pagan lo propusieron. 
+
+$$ \hat{u}_i^2 = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + r $$
+Si $\beta_1$ y $\beta_2$ son igual que cero, entonces los residuos no son explicativos en el modelo inicial.
+
+$$ H_0=\text{Los Residuos son Homocedasticos} $$
+$$ H_1=\text{Los Residuos NO son Homocedasticos} $$
+
+```{r }
+bptest(nuevo_modelo_final)
+```
+
+Aceptamos que los residuos son homocedasticos. 
+  
+Es buen momento para dar el paso y pasar del modelo de Regresión Lineal a los Modelos Lineales Generales. 
+  
+# 5.3 Modelo Lineal General (MLG)
+  
+Este tema vamos a empezarlo directamente presentando una nueva base de datos. Aunque no nos vamos a olvidar de la anterior base de datos puesto que volveremos a ella más adelante. 
+
+---
+  
+**BBDD2: Seguro de Auto**
+  
+Contamos con los DATOS de una empresa de seguros. Esta empresa quiere establecer una nueva tarifa para su producto de cobertura de lunas de coche. Para ello quiere ofrecer un producto adecuado al nivel de riesgo de cada cliente. Contamos con una base de datos del número de siniestros sufrido por cada cliente durante el año pasado.
+
+* Garantía: Tres niveles de garantía. 1-> Menor Cobertura 2-> Cobertura Premium 3 -> Cobertura Gold.
+* Edad Carnet: Número de años desde que se sacó el carnet de conducir el tomador del seguro.
+* Edad Coche: Número de años desde que el coche fue fabricado.
+* Sex: Indica si es Varon o Mujer.
+* Edad: Edad del tomador de la póliza.
+* x: Longitud del domicilio del cliente.
+* y: Latitud del domicilio del cliente.
+* response: Número de siniestros que tuvo el cliente el año pasado. 
+* Expuesto: Porcentaje del año en el que este cliente ha estado expuesto.  
+   
+   
+***Objetivo**: El objetivo que tiene la empresa es el de modelizar la variable response (Frecuencia de siniestros) con las diferentes variables explicativas que contamos. Con esta modelización, podrá definir la tarifa con la que salir al mercado. Para ello sabemos que el coste medio de cada siniestro es de 300 euros y además que los gastos de marketing y ventas del seguro representan un 20% de la prima. 
+  
+  $$ Prima=\frac{Siniestros*CosteSiniestro}{1-Gastos}=\frac{ModeloSiniestros*300}{1-0.20} $$
+  
+¿Generan todos los clientes el mismo número de siniestros?  
+¿Podemos discriminar perfiles y ofrecerles una prima adaptado a su riesgo?  
+  
+```{r results='asis', size="small"}
+df<-read.csv("./Data/table_5.03.csv",sep=",")[,-1] 
+pander(head(df), split.cell = 60, split.table = Inf,digits=2)
+```
+   
+---
+
+  
+**¿Estamos ante un problema de regresión lineal?**
+  
+## 5.3.1 Modelo de Regresión Lineal vs Modelos Lineales Generalizados
+
+Recordemos que en un modelo de regresión lineal teníamos un conjunto de variables explicativas(X) y una variable explicada (Y).  
+
+Estamos asumiendo que:  
+  
+* El error (u) de la dependencia lineal entre Y y X sigue una distribución normal.
+* Por lo tanto, como consecuencia de lo anterior Y|X sigue una distribución Normal.
+* El error (u) y las variables explicativas (X) son independientes
+* Asumimos que la varianza del error es homogénea.
+  
+$$ \begin{align}
+Para: Y=X\beta+u \\
+\\
+u\sim N(0,\sigma^2) \\
+ \\
+Entonces: Y|X \sim N(X\beta,\sigma^2)
+\end{align} $$ 
+
+**¿No hay ninguna alternativa si alguna de estas hipótesis no se cumplen o queremos cambiarlas?**  
+  
+Justo para esto surge la generalización de la regresión lineal, en la que se relajan algunas hipótesis iniciales.   
+En nuestra base de datos, estamos intentando modelizar el número de siniestros que cada cliente va a tener el próximo año. 
+  
+* A nuestro entendimiento no sigue una distribución normal. Sino que parece más una distribución Poisson o quasi-Poisson o Binomial Negativa o Zero-Inflated Poisson. 
+* Además, debemos ponerle una restricción al modelo. No tendría sentido que nuesta predicción saliese un número negaivo ¿verdad?. Entonces modelizarlo como una normal no sería la mejor opción por el rango de nuestros datos.  
+  
+Entonces debemos explorar los modelos lineales generalizados para ver si podemos modelizar este fenómeno con ellos.  
+Los próximos apartados contienen mucha fórmula y requieren especial atención. Os he intentado resumir el proceso y hacerlo amigable para que podáis entenderlo matemáticamente para luego en la práctica ser mucho más fuertes.  
+  
+**¿Qué nos permiten cambiar los modelos lineales generales?** 
+  
+* Nos permite cambiar la distribución de Y|X. Es decir, la relación media-varianza. **Función de distribución ()**
+* Nos permite cambiar la relación de linealidad entre la media de nuestra variable respuesta y las variables explicativas. **Función Link g(u)**.
+   
+## 5.3.2 Cambiar la función de distribución. La familia exponencial.
+  
+Recordamos las funciones de principales que vamos a tratar:
+
+$$ \begin{align}
+Y \sim Normal(\mu ,\sigma^2) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\sigma^2 \\
+\\
+Y \sim Poisson(\mu) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\mu \\
+\\
+Y \sim Binomial(\mu) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\mu(1-\mu) \\
+\\
+Y \sim Gamma(a\mu,a) \rightarrow E(Y)=\mu \rightarrow Var(Y)=\mu/a \\
+\end{align} $$
+
+Es importante entender la distribución que tenemos detrás de nuestros datos para realizar un buen ajuste en nuestro modelo.  
+  
+**¿Hay alguna función que pueda englobar la Normal, Poisson, Gamma....I can't beleive it?**
+
+Toda aquella función de densidad que pueda escribirse así, pertenece a la familia exponencial.
+
+$$ f(y, \theta,\phi ,)=exp(\frac{y\theta-b(\theta)}{a(\phi)}+c(y,\phi))  $$
+
+Donde a(), b(), c() son funciones. $$ \phi $$ Es un parámetro de dispersión que puede ser conocido o desconocido. $$ \theta $$ es el parámetro natural o canónico.  
+
+**¿La normal se puede expresar con la función de la familia exponencial?**  
+
+$$ \begin{align}
+f()=\frac{1}{(2\pi \sigma^2)^{(0.5)}}exp(-\frac{(y-\mu)^2}{2\sigma^2})= \\
+exp(\frac{(y\mu-\mu^2/2)}{\sigma^2}-\frac{(y^2)}{2\sigma^2}-\frac{1}{2}ln(2\pi \sigma^2)) \\
+\\
+Entonces: \\
+\theta=\mu \\
+b(\theta)=\theta^2 \\
+a(\phi)=\sigma^2 \\
+c(y,\phi)=-\frac{1}{2}ln(2\pi \sigma^2) \\
+\end{align} $$
+  
+**¿La poisson se puede expresar con la función de la familia exponencial?**  
+
+$$ \begin{align}
+f()=\frac{\mu^{y}}{(y!)}exp(-\mu)= \\
+exp(y ln(\mu)-\mu-ln(y!)) \\
+\\
+Entonces: \\
+\theta=ln(\mu) \\
+b(\theta)=exp(\theta) \\
+a(\phi)=1 \\
+c(y,\phi)=ln(y!) \\
+\end{align} $$
+
+## 5.3.3 Cambiar la función link
+
+La función link es la que relaciona el valor esperado de nuestra variable respuesta (Y) con el predictor lineal.   
+$$ \begin{align}
+E(Y|X)=\mu \\
+\\
+g(\mu)=X\beta \rightarrow \mu=g^{-1}(X\beta)
+\end{align} $$  
+  
+En la regresión lineal no hay transformación. Podemos decir que la función link es la identidad. 
+  
+$$ \begin{align}
+g(\mu)=\mu=X\beta
+\end{align} $$
+  
+**¿Pero cómo calibramos el modelo y de donde salen las betas?**
+  
+## 5.3.4 Calibración el modelo
+
+Tenemos la función exponencial:
+
+$$ f(y, \theta,\phi)=exp(\frac{y\theta-b(\theta)}{a(\phi)}+c(y,\phi))  $$
+¿Estimamos por Log-Verosimilitud?  
+
+$$ l(y, \theta)=\sum (\frac{y\theta-b(\theta)}{a(\phi)})+\sum c(y,\phi))  $$
+
+Y también tenemos:
+
+$$ g(\mu)=X\beta  $$ 
+  
+Maximizamos la log-verosimilitud:
+
+$$ \begin{align}
+U_j=\frac{\partial l(\theta,y)}{\partial \beta}=\sum \frac{(y-\mu)x }{Var(Y)g'(\mu)  } \\
+\\
+Matricialmente: \\
+\\
+U=X^tM^{-1}(Y-\mu) \\
+\\
+Siendo: \\
+M=diag(m_i,,,m_n)  \\
+m_i=Var(Y_i)g'(\mu_i)
+\end{align} $$
+
+Las ecuaciones que obtenemos al intentar resolver cada una de las betas no tienen por qué ser lineales.... 
+
+**Vaya formulotes estamos viendo. ¿Entonces qué hacemos?**  
+ 
+Tenemos que resolver esto por algún método numérico. Lo podemos resolver por Newton-Raphson o por Scoring Fisher, pero en ambos métodos hay que calcular matrices Hessianas que son de alto coste computacional.  
+Por eso optamos por el método de **Mínimos cuadrados ponderados iterativos**.  
+  
+$$ \begin{align}
+\beta^{r}=(X^tW^{-1}X)^{-1}X^tW^{-1}Z \\
+\\
+Donde: \\
+W=diag(Var(Y)g'(\mu)^2) \\
+\\
+Z=X\beta+(y-\mu)diag(g'(\mu_1,,,,\mu_n))
+\end{align} $$
+
+
+Resolvemos un problema a mano con la matemática aprendida y con la función glm. Simplemente vamos a verificar que podemos resolver el problema de los coeficientes del modelo para una submuestra de la base de datos que estamos trabajando. 
+  
+```{r }
+df_tratada<-dplyr::select(df,response,edad_carnet,edad_coche)[1:300,]
+
+X<-as.matrix(dplyr::select(df_tratada,-response))
+Y<-as.matrix(df_tratada$response)
+
+X <- as.matrix(cbind(1,X))
+beta<-as.matrix(c(1,0,0))
+
+for(i in 1:300) {
+Z <- as.matrix(X%*%beta+((Y-exp(X%*%beta))/exp(X%*%beta)))
+W <- diag(as.numeric(exp(X%*%beta)))
+
+beta <- solve(t(X)%*%W%*%X)%*%t(X)%*%W%*%Z
+}
+
+#Coeficientes GLM
+glm(response~edad_carnet+edad_coche,data=df_tratada,family=poisson(link="log"))$coefficients
+#Coeficientes Algebra
+print(as.numeric(t(beta)))
+
+
+```
+
+## 5.3.5 Vuelta a nuestro problema.
+
+**¿Qué distribución utilizo?**  
+
+Existe una distribución que sea mejor que todas las demás. En la práctica tenemos que tirar del conocimiento que tenemos sobre los datos para poder elegirla.  
+
+* Si tenemos datos continuos y sin límites, podemos utilizar la función por defecto Gaussiana.
+* Si tenemos datos continuos y no negativos, podemos pensar en distribuciones Gamma que son muy flexibles.
+* Si tenemos datos binarios o categóricos, podemos estar delante de una distribución Binomial o Multinomial.
+* Y si tenemos datos discretos basados en conteos podemos estar hablando de una Poisson, Quasi-Poisson o Binomial Negativa.
+  
+**¿Qué función Link Elijo?**  
+  
+Una que tenga sentido para los datos que estamos trabajando. Las funciones para elegir son estas:  
+
+<center>
+![fig5.1.6](./figures/fig_5.1.6.jpg){width=100%}
+<center>
+Fuente de la Imagen: [www.freakonometrics.hypotheses.org](https://freakonometrics.hypotheses.org/56682)
+  
+**¿Cómo lo programo?**
+  
+Solamente tenemos que utilizar la función glm. 
+  
+Primero vamos a especificar el modelo con todo lo que tenemos:
+```{r }
+# Establecemos la formula para  más adelate modelizar. 
+formula<-as.formula('response~garantia+edad_carnet+edad_coche+sex+edad+siniestros_ly')
+formula
+```
+  
+**¿Cómo voy a tratar variables categóricas?**  
+
+Las variables categóricas son aquellas que no son numéricas. Tienen un valor, pero el valor no tiene sentido estadístico ordenarlo. (Peras/Manzanas) (Hombre/Mujer) (Tipo de Coche).  
+  
+En nuestro caso, la variable GARANTÍA aunque sea un número, no tiene sentido de orden. Simplemente son distintos tipos de garantía que el cliente ha elegido. Entonces, lo primero que tenemos que hacer es asegurarnos que R está tratando esa variable como categórica. Lo siguiente que va a hacer nuestro modelo es generar tantas variables como categorías tiene la variable. En nuestro caso, dado que la variable GARANTÍA tiene tres niveles, el modelo va a generar tres variables: Garantía1, Garantía2, Garantía3. Cada una de estas variables tiene observaciones de 1 o 0. (1) en el caso de que la observación en GARANTÍA sea igual a 1, (0) en el caso de que la observación en GARANTíA sea igual a 2 o 3. Y así sucesivamente registro a registro. 
+Luego cuando generemos el modelo vamos a ver que el modelo quita una de ellas. Se queda  solamente con Garantía2, Garantía3.   
+  
+**¿Por qué lo hace?**.  
+  
+Porque no puede haber combinaciones lineales perfectas en el modelo. Os acordáis que cuando veíamos la correlación de Pearson os decía que medir las correlaciones es importante. Pues es por esto.  
+  
+Garantía1+Garantía2+Garantía3=Intercept (Vector de 1)  
+  
+Esto sería una correlación perfecta, entonces debemos quitar una variable en el modelo. En casi todos los softwares esto se hace automáticamente.  
+
+**¿Cómo tratar la variable expuesto?** 
+
+¿Es lo mismo haber estado expuesto 365 días, que haber estado expuesto 30 días?. Claro que no, las probabilidades deben estar corregidas. Esto hay que decírselo a nuestro programa, en concreto lo podemos meter directamente en la especificación.  
+Es el llamado Offset, que quiere decir el ajuste por exposición que debemos hacer a nuestra base de datos para decirle quien ha estado mucho tiempo expuesto y por lo tanto, sería normal que tuviese más siniestros, y quien ha estado menos expuesto.  
+**Hay que medir a todos los registros por igual**
+
+$$ \mu=exp(X\beta + ln(t))=t exp(X\beta) $$
+Vamos a crear tres q-q plots:
+
+1. M1:El primero con el modelo perfecto.
+2. M2:El segundo sin contemplar la exposición en la base de datos. Offset.
+3. M3:Por último utilizando la distribución Normal, en lugar de una Poisson. 
+  
+
+```{r }
+layout(matrix(c(1,2,3),1,3,byrow=T))
+#Declaramos la variable categórica
+df$garantia<-relevel(as.factor(df$garantia),ref=2)
+#Formula Nueva
+formula_new<-as.formula('response~garantia+edad_carnet+edad_coche+sex+edad+siniestros_ly+offset(log(Expuesto))')
+
+m1<-glm(formula_new,data=df,family=poisson(link="log"))
+m2<-glm(formula,data=df,family=poisson(link="log"))
+m3<-glm(formula,data=df,family=gaussian)
+
+#q-qPlit
+plot(m1,which=c(2),main="M1", adj = 0)
+plot(m2,which=c(2),main="M2", adj = 0)
+plot(m3,which=c(2),main="M3", adj = 0)
+
+#También lo podemos medir utilizando la función para comparar valores estimados y reales
+#Hist(df,df$response,predict(m1,df,type="response"),df$edad_carnet,5,10)
+#Hist(df,df$response,predict(m2,df,type="response"),df$edad_carnet,5,10)
+#Hist(df,df$response,predict(m3,df,type="response"),df$edad_carnet,5,10)
+
+```
+
+**¿Alguna técnica adicional para comparar modelos?**
+
+Si. La devianza de un modelo GLM es una medida de bondad del ajuste que compara dos modelos:
+
+1. El modelo que tenemos programado
+2. Con el modelo saturado. Quiere decir con el modelo con todas las variables y combinaciones de variables posibles. 
+
+$$ Devianza=-2[log.Mv(mimodelo)-log.Mv(modelo.saturado)] $$
+
+Cuanta menor devianza por lo tanto, mejor para nuestros intereses.  
+
+Comparamos los modelos obtenidos y comprobamos que el que tiene menor devianza es el m1. 
+
+```{r }
+m1$deviance
+m2$deviance
+m3$deviance
+```
+
+Una vez hemos terminado el chequeo de residuos, y hemos elegido nuestro modelo final.  
+  
+**¿Interpretación del modelo y efectos marginales?**  
+
+Cuando hacemos un summary() del modelo de regresión final que hemos planteado, vamos a encontrar la estimación de las betas y la varianza de las mismas. Esta información nos es útil para decidir si la variable es significativa y por lo tanto, en este entorno multivariante, susceptible de entrar en el modelo. También el signo (+ o -) de la beta nos indica la relación entre la variable explicativa y la variable respuesta.  
+  
+Los efectos marginales nos dicen cuánto cambio se produce en nuestra variable respuesta estimada dado un cambio de una unidad en la variable explicativa.  
+
+```{r }
+summary(m1)
+
+poissonmfx(formula = formula_new,data=df)
+```
+
+Recordamos que nuestro objetivo es el de generar una tarifa para poder comercializar. Ya tenemos nuestro modelo realizado, hemos comprobado que los residuos siguen todas las hipótesis marcadas, hemos visto la relación entre las variables.
+
+A continuación, desarrollamos el tarificador de nuestro seguro de auto.
+
+   $$ Prima=\frac{Siniestros*CosteSiniestro}{1-Gastos}=\frac{ModeloSiniestros*300}{1-0.20} $$
+  
+
+```{r }
+garantia2<-1
+garantia3<-0
+edad_carnet<-17
+edad_coche<-5
+sex<-1
+edad<-39
+siniestros_ly<-2
+Expuesto<-1
+
+
+X<-cbind(1,garantia2,garantia3,edad_carnet,edad_coche,sex,edad,siniestros_ly)
+beta<-m1$coefficients
+
+Siniestralidad<-exp(as.matrix(X)%*%as.matrix(beta))
+CosteSiniestro<-300
+Gastos<-0.2
+
+print("La tarifa que le correspondería sería:")
+print(paste(floor(Siniestralidad*CosteSiniestro/(1-Gastos)),"Euros"))
+
+```
+
+## 5.3.6 Modelos Logísticos
+
+**¿La distr. Binomial se puede expresar con la función de la familia exponencial?**  
+
+$$ \begin{align}
+f(y)=exp(y ln(\frac{p}{1-p})+ln(1-p)) \\
+\\
+Donde: \\
+Y={0,1} \\
+p=\text{Probabilidad de que un suceso ocurra} \\
+\end{align} $$
+
+Contamos con una tercera base de datos bastante interesante y diferente a lo que hemos venido viendo a lo largo de los temas.  
+  
+---
+  
+**BBDD3: Sensores de Movimiento**
+  
+Contamos con los DATOS procedentes de diferentes sensores colocados en personas durante sus actividades cotidianas del día a día. Los sensores a través de un acelerómetro capturan los movimientos de las diferentes personas. Cada una de las personas van a hacer diferentes acciones que quedan reflejadas en la base de datos. Se capturan 300 milisegundos por cada una de las acciones que la persona desempeña. Para el trabajo en cuestión, he elegido los datos procedentes de 1 sensor colocado en la muñeca de la persona. 
+
+* Nombre_Fichero: Nos indica el tipo de movimiento que la persona ha realizado. (Caminar, Sentarse, AbrirPuerta, Caerse...)
+* X1...X303: Nos indica el valor del acelerómetro desde el milisegundo 1 al milisegundo 303. 
+  
+**Objetivo**: El objetivo que tiene la empresa es la de detectar cuando una persona se cae de tal forma que pueda generar dispositivos para personas mayores que viven solas que cuando sufran caídas automáticamente un algoritmo lo reconozca y llame automáticamente a un equipo de ayuda.  
+  
+Para ello lo primero que vamos a hacer es establecer nuestra variable respuesta. Nuestra variable son aquellos registros que provengan de secuencias de caídas. Para ello las identificamos como "Fall_Forward".
+
+```{r results='asis', size="small"}
+df<-read.csv("./Data/table_5.04.csv",sep=",")[,-1] 
+df$response<-grepl("Fall_forwardFall",df$nombre_fichero)+0
+table(df$response)
+```
+  
+Del total de 746 registros, tenemos 71 veces en las que el patrón del sensor representa una caída de una persona. 
+
+<center>
+![fig5.1.7](./figures/fig_5.1.7.jpg){width=100%} 
+<center>
+Fuente de la Imagen: [www.webpersonal.uma.es](http://webpersonal.uma.es/de/ECASILARI/Fall_ADL_Traces/UMA_FALL_ADL_dataset.html) 
+  
+---
+
+Antes de meternos en modelizar el fenómeno, vamos a visualizar el fenómeno en concreto. En este problema no tenemos variables interpretables, sino que tenemos variables que corresponden a una ventana en el tiempo vinculada con el acelerómetro instalado en el sensor de la muñeca de una serie de personas. Esta ventana temporal es la que queremos modelizar y poder predecir si vuelve a pasar en el real-time, predecir que es una caída.  
+
+
+```{r}
+layout(matrix(c(1,2,3),1,3,byrow=T))
+
+plot(as.numeric(df[680,c(-1)]),type="l",main=df[680,c(1)])
+
+plot(as.numeric(df[420,c(-1)]),type="l",main=df[420,c(1)])
+
+plot(as.numeric(df[520,c(-1)]),type="l",main=df[520,c(1)])
+```
+
+Como parece que el movimiento de caída se produce principalmente en los primeros 120 milisegundos. Filtramos la base de datos y procedemos a modelizar.
+
+```{r}
+df<-df[,-c(1,120:304)]
+colnames(df)
+```
+
+Cada uno de los milisegundos que componen la base de datos va a ser una variable explicativa. Dentro de un entorno multivariante donde todos los milisegundos consideraos como variables explicativas se combinan para intentar predecir correctamente el suceso. Independientemente de los milisegundos significativos y no significativos, vamos a introducir todos ellos en el modelo lineal para ver el ajuste al que nos lleva.
+
+**¿Cómo modelizamos un suceso binomial?**  
+  
+Las funciones link más habituales para respuesta binaria son los siguientes:
+  
+$$ \begin{align}
+Logit(p)=ln(p/(1-p)) \\
+Probit(p)=\phi^{-1}(p) \\
+Cloglog(p)=ln(-ln(1-p))
+\end{align} $$
+  
+La resolución del modelo es con el método de máxima verosimilitud visto anteriormente y con un método numérico para su resolución. Así, propongo tres modelos diferentes.  
+
+<center>
+![fig5.1.8](./figures/fig_5.1.8.jpg){width=100%} 
+<center>
+Fuente de la Imagen: [www.towardsdatascience.com](https://towardsdatascience.com/why-is-logistic-regression-the-spokesperson-of-binomial-regression-models-54a65a3f368e) 
+
+1. Modelo Logit
+2. Modelo Probit
+3. Modelo Probit con el algoritmo MARS que vimos anteriormente  
+
+```{r warning=FALSE,message=FALSE}
+modelo_logit<-glm(response~.,data=df,family=binomial(link="logit"))
+modelo_probit<-glm(response~.,data=df,family=binomial(link="probit"))
+modelo_earth<-earth(response~.,data=df,glm=list(family=binomial(link=probit)))
+```
+
+En este problema, no nos interesa tanto la interpretabilidad de los datos como la capacidad de predicción. 
+
+**¿Cómo evaluamos la capacidad de predicción en modelos binarios?**
+
+A través de la curva ROC. Pero antes de la ROC tenemos que saber qué es la matriz de confusión.  
+
+La matriz de confusión es la relación entre valor real y valor estimado:
+
+1. Verdadero Positivo (VP): Estimamos Positivo y Realidad Positivo.
+2. Falso Positivo (FP): Estimamos Positivo y Realidad Negativo.
+3. Verdadero Negativo (VN): Estimamos Negativo y Realidad Negativo.
+4. Falso Negativo (FN): Estimamos Negativo y Realidad Positivo.
+
+De aquí surgen dos conceptos para relacionar los mismos, la especificidad y la sensibilidad.
+
+1. Especificidad: VN/(VN+FP). Cuanto mayor mejor. 
+2. Sensibilidad: VP/(VP+FN). Cuanto mayor mejor. 
+
+Los modelos Probit, Logit, Cloglog,,, nos dan una probabilidad asociada al individuo. Es aquí donde la labor del analista es fundamental a la hora de determinar lo que se considera Positivo o Negativo. Es decir, si la probabilidad de que los valores del acelerómetro sean una caída es de un 80% ¿Lo podemos considerar caída?. Si la probabilidad es un 70% ¿Lo podemos considerar caída?. Si la probabilidad es un 60% ¿Lo podemos considerar caída? y así sucesivamente. Hay que establecer uno corte para determinar lo que se considera Positivo y Negativo. Lo que nos mide la curva ROC es que dados todos los cortes desde el 0 hasta el 1, en cada uno de los intervalos vamos a medir la Especificidad y la Sensibilidad. Esto nos va a dar un área que es el área bajo la curva ROC (AUC). Lo cual quiere decir que cuanto mayor sea nuestra área, mayor será la capacidad predictiva del modelo.  
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+auc(df$response,predict(modelo_logit,df,type="response"))
+auc(df$response,predict(modelo_probit,df,type="response"))
+auc(df$response,predict(modelo_earth,df,type="response"))
+```
+
+Todos los modelos tienen un muy buen nivel de ajuste. Esto lo podemos confirmar viendo las distribuciones de los 1 y los 0 y los valores que hemos predicho. Este tipo de visualización nos ayuda a ver el punto de corte óptimo que tendríamos que meter en la probabilidad para maximizar las diferencias entre 0 y 1. En este problema lo que estamos visualizando es que los 0 los estamos captando muy bien, sin embargo, los 1 (cuando la persona se cae) recibe una probabilidad más elevada, pero no está concentrada alrededor de la probabilidad 1. 
+
+
+```{r results='asis', size="small"}
+predict<-predict(modelo_probit,df,type="response")
+ggplot(df, aes(x =predict , fill = as.factor(response))) +
+        geom_density(alpha = .5)
+```
+
+## 5.3.7 Estrategia ante la modelización GLM.
+  
+Para finalizar el apartado voy a recapitular los pasos que hemos ido dando para confeccionar un buen modelo.
+
+1. Creación de una buena base de datos con información interna y externa.
+2. Decisión sobre el tipo de datos que seguirá nuestra variable respuesta condicionada a las variables explicativas.
+3. Qué función / funciones Link vendría bien meter en este modelo.
+4. Métodos de selección de variables.
+5. Ajuste de variables frente a no linealidades.
+6. Evaluación de los residuos del modelo. Normalidad, Independencia, Homocedasticidad.
+7. Poder predictivo del modelo y comparativa contra otros modelos.
+
+**¿Ya sabemos todo sobre cómo hacer un muy buen modelo lineal?**  
+  
+Aún quedan algunos aspectos que tendremos que tener en cuenta. 
+
+* Cuando hemos generado nuestro modelo, hemos calculado las betas con una base de datos y hemos visto el grado de ajuste con esa misma base de datos. ¿No podríamos coger otra base de datos para comprobar el ajuste?.
+  
+* Cuando hemos realizado el modelo, hemos tomado unas variables como dadas. ¿Le podemos meter al modelo algún tipo de parámetro que penalice cada variable que metemos de más?.
+  
+* Cuando hemos testado la autodependencia de los residuos, lo hemos hecho con un entorno estático o bien vistos a lo largo del tiempo. ¿Y si los residuos están relacionados espacialmente?.
+
+A estas cuestiones les vamos a dedicar un apartado especial.
+  
+# 5.4 Técnicas para mejorar un modelo.
+  
+Empezamos como acabamos el tema anterior. ¿Debemos tener en cuenta más consideraciones para poder decir que nuestro modelo es suficientemente robusto y entonces podemos confiar en él para ponerlo en producción?.
+
+**Cuando hemos generado nuestro modelo, hemos calculado las betas con una base de datos y hemos visto el grado de ajuste con esa misma base de datos. ¿No podríamos coger otra base de datos para comprobar el ajuste?.**  
+
+## 5.4.1 Métodos de Remuestreo.
+
+El remuestreo en regresión es una técnica que consiste en sacar muestras de nuestra base de datos original, estimar un modelo (igual que lo hemos hecho hasta ahora) en base a esa submuestra, ver diferencias entre los parámetros estimados de cada una de las submuestras y por supuesto probar nuestras estimaciones en submuestras con las que no ha sido estimado el modelo para valorar el poder de predicción evitando sobreajustes en los modelos.  
+
+Esta técnica no supone nada adicional al conocimiento que traemos sobre estimación de modelos lineales generales. Sino que es una técnica que se basa en remuestreo (bootstrap) para intentar sacar de lo mismo (una base de datos), más información haciendo muchos minimodelos, en lugar de uno solo. Además, dota de independencia al ajuste en predicción del modelo. Lo que quiere decir que estimación y Suma Residual no van a provenir de los mismos datos, sino de muestras independientes y aleatoriamente escogidas. 
+**¿Pero para qué quiero complicarme la vida más?**  
+  
+Para dar mayor robustez al proceso y por lo tanto, mayor credibilidad. Estas técnicas nos van a ayudar a ver variabilidad en las betas y también nos van a ayudar a conocer el verdadero poder de predicción.  
+
+**Training - Test**
+
+La primera estrategia que vamos a seguir es la más sencilla. De nuestra base de datos original vamos a dividirla en dos partes. La primera parte va a ir destinada a entrenar nuestro modelo, de tal forma que los coeficientes estimados van a estar calculados en base a este subset de nuestra base de datos de origen Con estos coeficientes estimados vamos a validarlos con la otra parte de la base de datos que nos habíamos reservado en un primer momento. 
+
+Un ejemplo lo podemos desarrollar con la base de datos de sensores que habíamos estado utilizando hasta ahora. Recordamos que teníamos una base de datos con el detalle del acelerómetro por cada milisegundo en el que se almacenaba la información de una acción cotidiana. Nuestra misión era la de identificar aquellos patrones en los que los datos venían de una persona que se había caído frente al resto de patrones de acciones cotidianas. 
+  
+Lo primero que vamos a hacer es realizar una submuestra y realizar nuestro modelo de entrenamiento (training) 
+```{r warning=FALSE,message=FALSE}
+muestra<-0.7
+sample<-sample(x=c(1:nrow(df)),size = muestra*nrow(df))
+modelo_probit<-glm(response~.,data=df[sample,],family=binomial(link="probit"))
+
+```
+  
+A continuación, vamos a comprobar el ajuste AUC que veíamos anteriormente sobre la base de datos de entrenamiento y sobre la base de datos de test (que es la complementaria de la de entrenamiento).
+  
+```{r results='asis', size="small"}
+suppressMessages(auc(df$response[sample],predict(modelo_probit,df[sample,],type="response")))
+suppressMessages(auc(df$response[-sample],predict(modelo_probit,df[-sample,],type="response")))
+```
+  
+Podemos comprobar la diferencia importantísima entre ambos resultados. **¿Qué significa esto?**. Que la cifra que nos había dado anteriormente de grado de ajuste estaba muy viciada por los datos que estábamos utilizando. Nuestro modelo realizado ajustará a los datos reales más bien como indica la medida sobre la base de datos de test que la de entrenamiento.  
+
+**¿Con esto nos aseguramos que las muestras son independientes y que el error de la parte test sea más realista?**  
+
+Con esto lo mejoramos bastante, sin embargo, como ya podéis imaginar, dependiendo de la muestra aleatoriamente escogida tendremos unos resultados. Por lo tanto, aunque es una técnica que se utiliza muchísimo en la práctica, es cierto que se puede mejorar si queremos ser aun más precisos.
+
+**K Fold Validation** 
+
+Lo primero que se nos ocurre y es algo que no es muy difícil de programar, es hacer en lugar de una partición, múltiples particiones. La base de datos la vamos a dividir en K partes. Estas K partes las va a decidir el analista dependiendo del consumo computacional, recursos e incertidumbre sobre los datos que tenga. A partir de aquí lo que vamos a hacer es realizar K iteraciones sobre modelización y comprobación de la modelización. En la primera iteración estimaremos el modelo con K-1 partes y validaremos con la parte restante que no hemos utilizado para calcular el modelo. Así lo iremos haciendo sucesivamente hasta completar las K partes decididas inicialmente. Al finalizar el proceso podremos ver tanto la variabilidad del ajuste como la media del mismo. Con este proceso nos aseguramos mayor poder y seguridad sobre las estimaciones que estamos realizando. 
+
+Vamos a hacer esto mismo con la base de datos de los sensores.
+ 
+```{r warning=FALSE,message=FALSE}
+division<-4
+df$cluster<-sample(x = c(1:division),size = nrow(df),replace = T)
+
+auc<-c(0)
+for (i in 1:division){
+  modelo_probit<-glm(response~.,data=df[df$cluster!=i,],family=binomial(link="probit"))
+  auc[i]<-suppressMessages(auc(df$response[df$cluster==i],predict(modelo_probit,df[df$cluster==i,],type="response")))
+}
+print(auc)
+mean(auc)
+```
+
+En este caso he decidido partir en cuatro la base de datos y sacar el indicador del AUC. Como podemos ver cada una de las particiones nos lleva a resultados bien distintos, lo cual hace que tenga sentido poder utilizar la media de los mismos para poder hacer una correcta estimación del poder de predicción del modelo. 
+
+Si este proceso lo repetimos 20 veces veremos una nueva distribución del poder de predicción mucho más centrada y acertada.
+
+```{r warning=FALSE,message=FALSE}
+
+division<-4
+veces<-20
+
+medias<-c(0)
+for (x in 1:veces){
+df$cluster<-sample(x = c(1:division),size = nrow(df),replace = T)
+auc<-c(0)
+for (i in 1:division){
+  modelo_probit<-glm(response~.,data=df[df$cluster!=i,],family=binomial(link="probit"))
+  auc[i]<-suppressMessages(auc(df$response[df$cluster==i],predict(modelo_probit,df[df$cluster==i,],type="response")))
+}
+
+medias[x]<-mean(auc)
+}
+
+quantile(medias)
+```
+
+En el histograma podemos ver la realidad del poder de predicción de nuestro algoritmo. Podemos asumir que la esperanza matemática de la ROC va a ser el percentil 50 de los cuantiles reflejados arriba y que en ningún caso vamos a esperar resultados mejores que percentiles 90-100. 
+
+**¡Vaya! con lo bien que nos había quedado la modelización de las caídas**
+
+En realidad, este ajuste tan mediocre lo hemos obtenido puesto que solamente estamos utilizando un tipo de sensor (acelerómetro) y una localización de dicho sensor (muñeca). Si ampliamos el número de sensores utilizados el ajuste aumenta significativamente.  
+
+**¿Podemos hacer algo más con el remuestreo?**  
+
+Realmente tenemos múltiples posibilidades. 
+
+* Comprobar ajuste real de nuestro modelo frente a muestras independientes.
+* Elección de variables o grado del splines dado el error medio del remuestreo k-fold 
+* Otra opción que tenemos es la de testar las betas de nuestro modelo. 
+  
+Contamos con una cuarta base de datos con la que vamos a testar las betas de un modelo de precio del alquiler de viviendas.   
+  
+---
+  
+**BBDD4: Precio Alquiler**
+  
+Contamos con los DATOS procedentes de Airbnb. http://insideairbnb.com/get-the-data.html. La descarga la hemos realizado para las viviendas disponibles en Madrid (Barrio de Retiro) en Octubre 2020. 
+
+* Longitud y Latitud del piso.
+* Precio del piso por día y Logaritmo del precio. 
+* Room_Type: Tipo de habitación. Todos los tipos de vivienda en esta base de datos son únicos. Son viviendas familiares.
+* Minimum_nights: Mínimo número de noches requerido.
+* Number_of_reviews: Revisiones que tiene el piso y scoring de las revisiones. 
+* Bedrooms: Número de habitaciones con las que cuenta.
+* Reviews_per_month: Número de revisiones por mes. 
+* Availability: Disponibilidad los últimos meses y si tiene disponibilidad inmediata. 
+* Beds: Número de camas.
+* Accommodates: Número de acomodaciones permitidas.
+* Tv_ports y Ph_ports: Puertos de cable para conectar la televisión y de teléfono
+* Número de vecinos y Piso de la vivienda. 
+* Ventanas: Numero de ventanas en la casa.
+
+
+```{r results='asis', size="small"}
+pisos<-read.csv("./Data/table_5.05.csv",sep=",")[,-1] 
+colnames(pisos)
+```
+  
+***Objetivo**: El objetivo que nos marcan es el de realizar una modelización para poder asesorar el precio que se puede / debería cobrar por cada alojamiento dados unas variables definidas explicativas del precio. 
+  
+---
+
+Con esta base de datos vamos a realizar una estimación de la distribución de las betas de cada variable explicativa en base a submuestras de nuestra base de datos central. 
+```{r results='asis', warning=FALSE,message=FALSE}
+pisos<-dplyr::select(pisos,-price,-room_type)
+matriz<-as.data.frame(matrix(0,nrow=200,ncol=ncol(pisos)))
+
+for (i in 1:200){
+  rand<-sample(c(1:nrow(pisos)),size=0.5*nrow(pisos),replace = FALSE)
+  modelopisos<-glm(logprice~.,data=pisos[rand,])
+  matriz[i,]<-as.vector(modelopisos$coefficients)
+}
+
+colname<-c("intercep",colnames(pisos))
+colname <- colname[!colname %in% "logprice"]
+colnames(matriz)<-colname
+matriz<-matriz[,-1]
+
+p<-suppressMessages(diag_cajas(matriz,filas = floor(ncol(pisos)/5)+1,columnas=5))
+```
+
+La idea que perseguimos con el remuestreo en este caso es la de observar la variablidad de las betas ante sets de datos diferentes aleatoriamente extraídos. Las betas que tengan poca dispersión serán aquellas más insesgadas al muestreo establecido. Cuidado con las betas que tengan valores positivos y negativos dependiendo de la muestra. Esto quiere decir que nos debemos fiar poco de dicha variable explicativa o que hay efectos no lineales u opuestos dentro de ella.  
+  
+Una vez que hemos conocido las técnicas de remuestreo...
+
+
+**Cuando hemos realizado el modelo, hemos tomado unas variables como dadas. ¿Le podemos meter al modelo algún tipo de parámetro que penalice cada variable que metemos de más?.**  
+
+## 5.4.2 Métodos de Regularización.
+
+Los métodos de regularización son extensiones del modelo lineal que lo que pretenden básicamente es una reducción de la dimensionalidad en la base de datos utilizando técnicas que permitan establecer una penalización sobre cada variable añadida en la misma fórmula que vamos a estimar. 
+
+En el apartado dedicado a la regresión lineal vimos:
+
+$$ Y=\beta_1X_1+\ldots+\beta_pX_p+u $$
+
+$$ \hat{\beta} \sim N(\beta,\sigma (X^tX)^{-1})  $$
+El error medio de cada beta la podemos definir como:  
+
+$$ ErrorMedioBeta=E((\hat{\beta}-\beta)^2)=(E(\hat{\beta})-\beta)^2+Var(\hat{\beta})  $$
+El primer componente de es el sesgo al cuadrado y la segunda parte la varianza. 
+
+Los métodos que propone la regularización se basan en tratar de incrementar el sesgo reduciendo significativamente la varianza. Al final el error disminuye si la reducción de la varianza es mayor que el incremento del sesgo. La manera en que lo hace es simplemente incluyendo en la Suma Residual una penalización la cual como hemos visto en apartados previos la vamos a optimizar. 
+
+$$ Ridge === \text{SR}(\beta)+\lambda\sum_{j=1}^p \beta_j^2=\text{SR}(\beta)+\lambda\|\beta_{-1}\|_2^2$$
+$$ Lasso === \text{SR}(\beta)+\lambda\sum_{j=1}^p |\beta_j|=\text{SR}(\beta)+\lambda\|\beta_{-1}\|_1$$
+
+### Regresión Ridge
+
+Estamos introduciendo el parámetro lambda en la regresión. Cuando lambda vale cero, entonces la fórmula quedaría similar a la regresión lineal vista en apartados anteriores. 
+Teóricamente vamos a incrementar el sesgo de los estimadores, sin embargo, vamos a reducir la varianza. El problema por lo tanto, que surge es el de ver qué valor lambda disminuye y minimiza el error. 
+
+Nos vamos a adentrar en el paquete de R "glmnet" que nos va a hacer la estimación Ridge para cada valor posible de lambda. Vamos a seguir utilizando la base de datos que hemos utilizado anteriormente del precio del piso de alquiler. Es una base de datos óptima para este tipo de ejercicios, puesto que tenemos relativamente pocos datos y bastantes variables explicativas. Para evitar el overfitting deberíamos introducir algún tipo de ajuste que penalizase la introducción de variables en el modelo.  
+  
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+model <- model.matrix(logprice~., data = pisos) 
+response<-pisos$logprice
+Ridge <- glmnet(x = model, y = response, alpha = 0)
+
+plot(Ridge, label = TRUE, xvar = "lambda")
+```
+
+En esta figura tenemos el valor de las betas por cada valor que va tomando Lambda. Como hemos dicho, para lambda=0 entonces el valor de las betas se corresponde con el valor medio que habíamos calculado en el ejercicio anterior de remuestreo. A medida que lambda empieza a aumentar, la beta va reduciéndose y tendiendo a cero, puesto que la penalización es tan grande que la introducción de las variables carece de sentido cuando lambda es muy grande. 
+  
+**Nuestro problema es...¿Qué lambda escogemos?**
+  
+La elección de lambda se suele hacer con la validación cruzada que acabamos de ver. Vamos a ir midiendo por cada set de datos y lambdas el error medio que obtenemos y nos vamos a quedar con el valor de lambda que minimiza dicho error medio. 
+  
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+Ridge2 <- cv.glmnet(x = model, y = response, alpha = 0, nfolds = 100)
+
+plot(Ridge2)
+```
+Podemos ver el valor óptimo del lambda en el cual minimizaríamos el error medio en el modelo. Nuestro modelo final lo podemos calcular con el lambda mínimo obtenido. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+pander(as.data.frame(as.matrix(predict(Ridge2, type = "coefficients", s = Ridge2$lambda.min))), split.cell = 80, split.table = Inf)
+```
+  
+Estas serían nuestras betas finales optimizadas para este problema de regularización. 
+  
+### Regresión Lasso
+  
+La principal diferencia con Lasso es el tipo de penalización utilizada. Para resolver el problema lo que hacemos es llevar los coeficientes a cero, por lo que se realiza una selección implícita de variables. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+Lasso <- glmnet(x = model, y = response, alpha = 1)
+plot(Lasso, xvar = "lambda", label = TRUE)
+```
+
+El modelo va descartando variables de tal forma que obtengamos el mínimo error posible en la estimación final. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+Lasso2 <- cv.glmnet(x = model, y = response, alpha = 1, nfolds = 100)
+plot(Lasso2)
+pander(as.data.frame(as.matrix(predict(Lasso2, type = "coefficients",s = Lasso2$lambda.min))), split.cell = 80, split.table = Inf)
+```
+
+Como vemos, el modelo hace una selección de variables o lo que es lo mismo, establece el valor de beta en 0 para ciertas de ellas quedándose con el resto. El modelo final es aquel lambda que minimiza el error general del modelo. 
+
+**¿Se puede generalizar este tipo de modelos al igual que los modelos lineales?**
+
+Efectivamente, hay toda una literatura de modelos Ridge y Lasso en el mundo de los GLM (Modelos Lineales Generalizados).  
+Cuando maximizábamos la función de verosimilitud y con ella obteníamos los parámetros, ahora vamos a hacer exactamente lo mismo pero introduciendo el hiperparámetro lambda igual que lo hemos hecho con el modelo lineal simple. 
+
+$$\hat{\beta}_{\lambda,\alpha}:=\min\left\{ -L(\beta)+\lambda\sum_{j=1}^p (\alpha|\beta_j|+(1-\alpha)|\beta_j|^2)\right\} $$
+
+
+Pasamos a la última sección del programa que vamos a ver más metodologías que nos van a ayudar a comprender los problemas que normalmente se tratan.  
+  
+# 5.5 Introducción a Métodos Temporales y Espaciales 
+  
+## 5.5.1 Introducción a Métodos Temporales 
+
+En esta subsección, vamos a adentrarnos brevemente en el mundo de las series temporales. Vamos a disponer de una base de datos como antes, en esta base de datos vamos a encontrar nuestra variable respuesta, la única diferencia con respecto a lo que hemos visto es que las observaciones sucesivas no son independientes entre ellas. Es decir, el valor que toma nuestra variable ahora va a depender entre otras cosas de valores pasados que ha tomado. 
+
+Las series temporales las podemos dividir en:
+
+* Series estacionarias: Media y varianza de la variable respuesta son constantes a lo largo del tiempo. 
+* Series no estacionarias:  Media y varianza de la variable respuesta no son constantes a lo largo del tiempo. 
+
+---
+  
+**BBDD5: Tasas de Paro**
+  
+Contamos con los DATOS procedentes del INE con las tasas de paro por trimestre. 
+
+```{r results='asis', size="small"}
+tasas<-read.csv("./Data/table_5.06.csv",sep=",")[,-1] 
+inicio<-2000
+fin<-2019
+tasas<-dplyr::filter(tasas,Edad=="De 25 a 29 años",year<=fin,year>=inicio)
+plot(tasas$ToT,type="l")
+```
+
+
+**Objetivo**: Hacer un análisis del paro en jóvenes y hacer una descomposición de la serie temporal y lograr hacer predicciones con un modelo de serie temporal. 
+
+---
+
+Antes que nada **¿Para qué queremos usar series temporales dentro de la modelización que hemos estado viendo?**
+
+Pueden ser dos los motivos. El primero nuestro interés en conocer o estimar la tasa de paro desde el punto de vista económico, para explicar ciertos patrones o comportamientos. El segundo, puede que la variable tasa de paro sea una variable explicativa de nuestro modelo de COMPRAS ONLINE o del PRECIO DE LA VIVIENDA. Para predecir lo que ocurrirá el próximo año, tendremos que estudiar nuestra variable explicativa y saber cómo se va a comportar dentro de una lógica estadística.  
+  
+Partimos de la idea que la serie temporal la podemos descomponer en Tendencia y en Fluctuación cíclica. Dentro de la ciclicidad tendremos variaciones estacionales de la serie a lo largo de un periodo de tiempo y movimientos irregulares aleatorios o producidos por fenómenos concretos (terremotos, sequías, atentados...).
+
+Entonces nuestra variable objetivo:
+
+$$ Y_t=Tendencia_t+Estacionalidad_t+Error_t $$
+Realizamos nuestra primera descomposición de la serie:
+
+**¿Cómo la descompone?**
+
+* Utilizando una media móvil para el cálculo de la tendencia.
+* Una vez extraída la tendencia de la serie principal se calcula la media de cada periodo para obtener la parte estacional.
+* Por último, la parte aleatoria será la diferencia entre las dos anteriores y la serie real. 
+  
+** !Cuidado¡, hay que verificar que la serie tenga varianza constante y sea estacionaria**
+  
+* En el caso de que la varianza de la serie no fuese constante en el tiempo, se recomienda una transformación de la serie al igual que explicábamos en las bases de datos anteriores. Esto lo podemos hacer tomando logaritmos sobre la serie. 
+
+```{r results='asis', size="small"}
+x <- ts(tasas$ToT, start = c(inicio, 1), end = c(fin, 4), frequency = 4)
+x<-log(x)
+plot(decompose(x))
+```
+
+Con esto tenemos una idea de cómo se comporta nuestra serie. En este caso tiene una tendencia que va unida al ciclo económico y luego tiene una estacionalidad en la que la tasa de paro cae en los meses de primavera-verano y luego va cayendo en meses posterior es debido principalmente al sistema económico español. 
+
+**¿Cómo podemos hacer predicciones con esta información?**  
+
+Hay que recurrir a los modelos ARIMA los cuales se basan en el principio de que vamos a conseguir hacer una predicción de una variable en el tiempo, únicamente con la información de su pasado. No vamos a recurrir a variables exógenas, simplemente vamos a realizar el análisis de la serie frente a sí misma en el pasado. 
+
+**Modelos Autoregresivo (AR)**
+
+El valor de la variable depende de los "p" valores anteriores.
+
+$$ Y_t=\beta_0+\beta_1*Y_{t-1}+...+\beta_n*Y_{t-p}+u $$
+
+**Modelos Media Móvil (MA)**
+
+El valor de la variable depende de la media ponderada de las "q"" perturbaciones aleatorias precedentes.  
+
+$$ Y_t=\rho_0+e_t-\rho_1*e_{t-1}-...-\rho_n*e_{t-n} $$
+
+**Autocorrelación y Autocorrelación Parcial** 
+
+Una medida para ver a priori el tipo de modelo que tenemos entre manos es ver la autocorrelación de las variables. 
+
+$$  correlacion(time1,time2)=\frac{cov(time1,time2)}{(var(time1)var(time2))^{0.5}}   $$
+La correlación parcial, en lugar de tener en cuenta dos "lags" temporales, se corrige con la correlación entre los tiempos entre ellos. La única que permanecerá inalterada será la correlación de orden 1, que como no tiene tiempos entre medias, pues permanece equivalente. 
+
+```{r results='asis', size="small"}
+ac<-acf2(x)
+```
+En la primera parte tenemos la autocorrelación retardo a retardo y en la segunda la autocorrelación parcial (corregida). 
+
+* Si la función de autocorrelación decrece rápidamente cuando incrementa el retardo, es una señal de modelo autorregresivo. Si es un modelo autorregresivo de orden p, entonces encontraremos en la autocorrelación parcial los p primeros coeficientes distintos a cero, y el resto cero. 
+* En los modelos de medias móviles, la función de autocorrelación es cero para retardos superiores a q, y la parcial decrece rápidamente. 
+
+**¿Qué tenemos aquí?** **¿Un AR,MA o Mix ARIMA?** **¿Y qué tipo de retardo podemos establecer?**
+
+Tenemos que encontrar el mejor modelo de tal forma que se encuentre qué grado de AR y MA son los mejores (para una serie estacionaria). Si la serie no es estacionaria (Media Constante), tendremos que buscar un parámetro adicional, un parámetro "d" que nos diga que grado diferencial tendríamos que meter en la serie para corregir su media. 
+
+De tal forma que:
+* si es estacionaria la serie, solamente tendremos que ajustar AR+MA
+* si no es estacionaria la serie, tendremos que ajustar AR+MA+d
+
+ARIMA(AR=p,d=d,MA=q) -> Si hacemos algún valor cero, estaríamos ante un AR,ARMA,ARd,MA....
+
+Como cualquier modelo que hemos visto, tenemos que definir p,d,q hasta que los residuos sean normales, ruido blanco, incorrelacionados y mínimos....
+
+**¿Da igual que tengamos datos anuales o trimestrales?**
+
+No, cuando la frecuencia es menor a 1 año, tenemos más complejidad en el modelo. La detección de un comportamiento estacional es clave ya que es posible incorporar a un modelo ARIMA (p,d,q) las correlaciones existentes entre observaciones separadas por periodos estacionales.
+
+Daría lugar al proceso:
+
+$$ ARIMA(p,d,q)*XARIMA(P,D,Q)_{frecueciaanual}$$
+
+Tendríamos que calibrar:
+
+* p retardos del AR a la parte regular
+* q retardos del MA a la parte regular
+* d diferencias a la parte regular
+* P retardos AR a la parte estacional
+* Q retardos MA a la parte estacional
+* D diferencias a la parte estacional.
+
+**¿Tenemos que ir a manubrio probando?**
+
+Es una opción. Esto nos permite ir aprendiendo del proceso y de la serie, pero hay otra forma. Paquete Auto-Arima. Igual que el Stepwise que vimos , pero en series temporales.
+
+
+```{r results='asis', size="small"}
+auto.arima(x)
+```
+  
+**¿Y cuáles serán las tasas de desempleo más probables para el próximo año?**
+  
+```{r results='asis', size="small"}
+futurVal <- forecast(auto.arima(x),  level=c(90),8)
+plot(futurVal)
+```
+  
+## 5.5.2 Introducción a Métodos Espaciales 
+  
+La última pregunta que nos hacíamos anteriormente era:
+
+**Cuando hemos testado la autodependencia de los residuos, lo hemos hecho con un entorno estático o bien vistos a lo largo del tiempo. ¿Y si los residuos están relacionados espacialmente?.**  
+
+Volvemos a nuestra primera base de datos de compras ONLINE. Con esta base de datos comenzábamos a aprender el mundo de las regresiones lineales y de la inferencia. Aprendimos entre otras cosas que no podemos dar por bueno un modelo hasta estar convencidos de que las hipótesis previa resolución (estimación de las betas) son correctas.  
+  
+**¿Para qué hacíamos esto?**. 
+
+**Autocorrelación Temporal** -> No queríamos que nuestro modelo tuviese autocorrelación temporal puesto que estaríamos diciendo que nuestro modelo vale para este año, sin embargo, para años venideros no va a funcionar puesto que el error depende del tiempo.   
+
+Si aparece autocorrelación en los residuos, o residuos no independientes, además de anular matemáticamente la optimización que hemos hecho, puede traer graves consecuencias para nuestro negocio. Podemos hacer campañas comerciales o tarifas específicas para un segmento de personas que hubiese funcionado el año pasado, pero que el año que viene no va a funcionar. 
+
+Gracias a nuestra destreza modelizando, esto no ocurría y de acuerdo a los tests todos los test de residuos estaban bien posicionados.  
+
+**¡Cuidado!, si cambiamos ligeramente el párrafo anterior vamos a ver lo que pasa**
+
+**Autocorrelación Espacial** -> No queríamos que nuestro modelo tuviese autocorrelación espacial puesto que estaríamos diciendo que nuestro modelo vale para una zona, sin embargo, para otras zonas no va a funcionar puesto que el error depende del espacio.   
+
+Si aparece autocorrelación espacial en los residuos, o residuos no independientes, además de anular matemáticamente la optimización que hemos hecho, puede traer graves consecuencias para nuestro negocio. Podemos hacer campañas comerciales o tarifas específicas para un segmento de personas que hubiese funcionado en una zona, pero que en otra zona no va a funcionar. 
+
+**¿Qué es la dependencia espacial?**
+
+* La dependencia espacial es el grado de asociación / correlación entre observaciones próximas entre sí.  
+* Existencia de una relación en un punto del espacio y lo que ocurre en otro lugar.  
+* El valor de una variable depende del valor de sus vecinos.  
+* Coincidencia de valores altos/bajos en un lugar.  
+
+**¿Quién es vecino de quién?**  
+
+Matriz de vecindad = W.
+
+<center>
+![fig5.1.9](./figures/fig_5.1.9.jpg){width=100%} 
+<center>
+Fuente de la Imagen: [www.scielo.org.co](http://www.scielo.org.co/scielo.php?script=sci_arttext&pid=S0121-215X2019000100001) 
+
+Simplemente vamos a indicar dentro de una matriz:
+
+1 : El individuo i y el individuo j son vecinos.
+0 : El individuo i y el individuo j no son vecinos. 
+Dependiendo del criterio de adyacencia, la matriz será simétrica o no !
+
+**¿Hay alguna forma de medir la dependencia espacial?** 
+
+Con el test de I-Moran. 
+
+$$ I = \frac{n}{\sum_i \sum_j w_{ij}} \frac{\sum_i \sum_j w_{ij} (x_i - \bar{x}) (x_j - \bar{x})}{\sum_i (x_i - \bar{x})^2} $$
+Donde W es la adyacencia entre Xi y Xj. La matriz W forma la matriz de pesos espaciales. 
+
+El test Imoran tomará valores entre -1 y 1. 1 querrá decir que tenemos dependencia espacial positiva y -1 que tenemos dependencia espacial negativa. 0 que no hay dependencia espacial. 
+
+**¿Tenemos dependencia espacial en los residuos de nuestro modelo de Compras Online?** 
+
+Vamos a comprobarlo con R. Vamos a probar seleccionando 5 vecinos y 10 vecinos de cada persona por cercanía. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+
+moran.test(x = nuevo_modelo_final$resid, listw = nb2listw(nb, style="W"))
+moran.plot(x = nuevo_modelo_final$resid, listw = nb2listw(nb, style="W"),main="Gráfico I Moran")
+```
+
+Solamente muestro 10 vecinos. Para 5 lo podéis hacer vosotros. **¿Qué vemos?**, vemos que el I-Moran es altamente significativo (p-valor), lo cual es mal síntoma. Hay dependencia espacial en el modelo que habíamos valorado como bueno.... y nadie nos había dicho nada.....  
+Esto significa que por muy bueno que fuese nuestro modelo, no está teniendo en cuenta el tema de la cercanía entre personas. Quiere decir que si alguien de mi entorno compra online, yo voy a estar altamente influido para comprar online y si alguien de mi entorno deja de comprar en esta web, yo voy a estar influido para dejar de comprar. Y todo esto, tan simple como es contarlo, lo estamos olvidando en la modelización.
+
+Lo que nos está sacando el Imoran es que los residuos están interconectados. Que los residuos altos o positivos están cerca geográficamente de los altos y los bajos están cerca geográficamente de los bajos.
+
+Valores Altos del gasto se encuentran cerca de otros que tienen valores altos.  
+Valores Bajos del gasto se encuentran cerca de otros que tienen valores bajos.  
+
+**Muy Importante: INTERPRETACIÓN. ¿Por qué puede estar sucediendo?**  
+  
+* La geolocalización puede estar enmascarando otras variables relevantes. Puede ser que la zona superior sea una zona rica, y la parte de la derecha una parte deprimida económicamente…  
+* Puede haber efecto llamada. La gente habla entre sí, y habla sobre precios y productos. Puede que individuos se influyan entre ellos en el precio que pagarían por un determinado producto.  
+* Puede ser que haya factores geográficos muy distintos por ubicación. Puede que el número de centros comerciales en un sitio y en otro sea muy distinto y esto influya en el precio de búsqueda y efectivo que pagaría un individuo.
+
+**¿Sabemos si están concentrados en una zona en concreto del mapa estos casos?** 
+
+No. Lo que nos está diciendo es que en todo el mapa está pasando esto. Quiere decir que todos los individuos de nuestra base de datos están influenciados por gente de su alrededor tanto positiva como negativamente.  
+
+Para ver si además de esto, hay alguna zona en el mapa que presenta un alto grado de dependencia espacial. Es decir, una dependencia espacial local, podemos llamar al test LISA. Es equivalente al I-Moran pero lo vamos a hacer a nivel regiones. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+imoranlocal<-as.data.frame(localmoran(x = nuevo_modelo_final$resid, listw = nb2listw(nb, style="W")))
+tabla$registo<-1                         
+#pl_pt(tabla,color2 = imoranlocal$Z.Ii,size2 =tabla$registo ,dd = 6)                       
+```
+<center>
+![fig5.2.0](./figures/fig_5.2.0.jpg){width=100%} 
+<center>
+
+Lo que nos saca el test Imoran es el valor del estadístico para cada una de las zonas. Nos interesa aquellos valores del estadístico que sean suficientemente grandes como para decir que es significativo. Por los datos que nos saca, centrándonos en aquellos valores en color rojo, podemos ver cierta dependencia espacial en la zona sur-oeste.  
+
+Aunque mi única intención es alimentar vuestra curiosidad por este tipo de modelos y ver las posibilidades que plantean sin llegar a un análisis muy detallado de la materia. Hay que decir que a veces la dependencia espacial confunde la heterocedasticidad espacial. **¿Qué quiere decir esto?** Antes estábamos comentando que el problema planteaba una dependencia espacial severa. Puede en algunos casos que la dependencia espacial se confunda con heterocedasticidad espacial, o puede que convivan autocorrelación espacial y heterocedasticidad espacial. La heterocedasticidad espacial es la diferencia en la varianza del error a lo largo del mapa.  
+  
+En el caso que estamos analizando parece que además de existir una dependencia espacial en el mapa, algo de heterocedasticidad espacial hay también. (Foco Sur-Oeste de Madrid. )
+
+**¿Qué hacemos ante tal problema?**
+
+Defino una serie de opciones que tenemos para ir venciendo a la dependencia espacial:
+
+1. Incorporo más variables relacionadas con el espacio. Ejemplo: Renta por municipios; Distancia a principales redes de carreteras; Densidad de población; etc..
+
+Check Imoran.
+
+2. Defino clusters espaciales y los incorporo en el modelo estadístico. Ejemplo: Ciertos barrios tienen propensión a comprar mucho, entonces creo una variable que para estos barrios tome valor 1 y para el resto 0. Algoritmos interesantes para proponer un cluster espacial: Satscan o modelos GWR.
+
+Check Imoran.
+
+3. Cambiar nuestro GLM, por un GLMSpacial.
+
+**Spatial Autorregresive Model**
+
+Lo definimos como:
+
+$$ Y=X\beta + \rho WY+u $$
+Donde W es la matriz de pesos espaciales. 
+
+**¿Qué quiere decir este modelo?**
+
+Quiere decir que la Y se explica con las variables exógenas como siempre pero hay un factor más que es "rho" que es el impacto "boca a boca". Lo cual quiere decir que los individuos están impactados por lo que sucede a su alrededor.
+
+Lo resolvemos:
+
+$$ Y=(I-\rho W)^{-1}(X\beta +u) $$
+
+La estimación de las betas la realizamos maximizando la verosimilitud.
+
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD_hasta_57 + EDAD_despues_57 + GENERO + Log_Ing + Dens_h')
+
+nuevo_modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+modelo_espacial_sar <- lagsarlm(formula = formula,data=tabla, listw = nb2listw(nb, style="W")) 
+summary(modelo_espacial_sar)
+
+paste("residuos modelo GLM",sum((nuevo_modelo_final$resid)**2))
+paste("residuos modelo GLMEspacial",sum((modelo_espacial_sar$residuals)**2))
+```
+
+Como podemos ver el modelo rebaja mucho el error medio del modelo. Es algo realmente interesante porque nos acercamos al "verdadero" valor de las betas. Desmigando los datos y conociendo este tipo de técnicas podemos acercarnos a la realidad.
+En este modelo SAR, la variable dependiente está autocorrelacionada espacialmente hablando. 
+Quiere decir que el valor que toma una determinada variable, está influenciada por el valor que toma sus vecinos. 
+Por eso tenemos que introducir en la ecuación la matriz de pesos espaciales y la respuesta autocorrelacionada. 
+
+Probablemente a estas alturas, ya casi finalizando el tema os preguntaréis:  
+
+**¿Cómo puedo saber qué modelo tengo que utilizar en cada momento?**  
+
+Aunque se han desarrollado algoritmos que te dan una indicación del tipo de modelo, función link, distribución a elegir, etc... la realidad es que el mejor aliado para conocer el verdadero modelo es el conocimiento de la materia. La intuición basada en experiencia es lo que nos hace llegar a modelos cada vez mejores.  
+**Tenéis que dedicar tiempo a los datos, a conocer el problema y antes de poneros a programar y a probar algoritmos, hay que pensar en qué tipo de solución podemos darle a dicho problema**. Probablemente, después de un tiempo de reflexión no va a salir el mejor modelo a la primera, sino que habrá que probar con varios, pero llevaremos mucho terreno ganado. 
+
+
+**Spatial Error Model**
+
+Lo definimos como:
+
+$$ \begin{align}
+Y=X\beta + u  \\
+u = \rho W u + \epsilon 
+\end{align}$$
+Donde W es la matriz de pesos espaciales. 
+
+**¿Qué quiere decir este modelo?**
+
+Quiere decir que el error lleva implícito una estructura espacial. La existencia de factores o variables no considerados en la especificación del modelo trasladan la dependencia espacial al término de error. 
+
+Lo resolvemos:
+
+$$ Y=X\beta + (I- \rho W)^{-1} \epsilon   $$
+La estimación de las betas la realizamos maximizando la verosimilitud.
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+
+formula<-as.formula('COMPRAS ~ Dist_Min + ANTIGUEDAD + EDAD_hasta_57 + EDAD_despues_57 + GENERO + Log_Ing + Dens_h')
+
+nuevo_modelo_final<-glm(formula = formula,data =tabla,family=gaussian)
+modelo_espacial_sar <- lagsarlm(formula = formula,data=tabla, listw = nb2listw(nb, style="W")) 
+modelo_espacial_sem <- errorsarlm(formula = formula,data=tabla, listw = nb2listw(nb, style="W")) 
+summary(modelo_espacial_sem)
+
+paste("residuos modelo GLM",sum((nuevo_modelo_final$resid)**2))
+paste("residuos modelo GLMEspacial SAR",sum((modelo_espacial_sar$residuals)**2))
+paste("residuos modelo GLMEspacial SEM",sum((modelo_espacial_sem$residuals)**2))
+```
+
+Podemos ver que SAR y SEM dan un ajuste bastante parecido dados los residuos.
+
+**¿Destruyen ambos la dependencia espacial de los residuos?**
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+nb <- knn2nb(knearneigh(cbind(tabla$LONG, tabla$LAT), k=10))
+#Dependencia espacial del SAR
+moran.test(x = modelo_espacial_sar$residuals, listw = nb2listw(nb, style="W"))
+#Dependencia espacial del SEM
+moran.test(x = modelo_espacial_sem$residuals, listw = nb2listw(nb, style="W"))
+
+```
+
+Ambos la destruyen....... parece que el SEM es el que mejores resultados otorga.
+
+Antes de ver el último modelo espacial que me interesaría que conozcáis, deciros que estos modelos que hemos visto en entorno gaussiano están igualmente probados y desarrollados en entorno generalizado con función exponencial. Evidentemente el gasto computacional para calcular estos modelos es mucho mayor, pero los avances en computación, en GIS y en formulación espacial hacen que el futuro vaya encaminado a que estos modelos más completos y que pueden sacar patrones más interesantes y completos. 
+
+**Modelos de Regresión Geográficamente Ponderados**
+
+Para finalizar os voy a enseñar otro método interesante para ver si aún nos queda heterocedasticidad en el modelo. Aunque lo podéis aplicar a una infinidad de problemas. Se tratan de los modelos de regresión geográficamente ponderados.  
+Son modelos que responden a la siguiente pregunta:
+
+**¿El efecto de una variable sobre nuestra respuesta es independiente del espacio?**
+
+Quiere decir que la edad es un factor clave (ya lo sabíamos), pero ¿afecta de la misma manera el cambio en comportamiento del cliente en el sur que en el norte?. Este tipo de algoritmos lo pone a prueba.
+
+La idea detrás de los modelos GWR es la medición de la relación entre la variable dependiente y las independientes a través del espacio. En lugar de calibrar un modelo único, miraremos un modelo global a través de la combinación de las diferentes áreas geográficas. La modelización GWR calibra tantos modelos como puntos hay en nuestra base de datos. Estima un modelo por punto cogiendo los puntos que hay a su alrededor, dando mayor importancia a los que están en el centro.
+La técnica GWR no está desarrollada como algoritmo econométrico puro, sino que surge y tiene más empleabilidad para suavización o interpolación de datos (véase también métodos krigging).
+
+Pasamos de:
+
+$$ Y=\beta_1X_1+\ldots+\beta_pX_p+u $$
+a:
+
+$$ Y_s=\beta_{s1}X_1+\ldots+\beta_{s1}X_p+u $$
+Donde s es cada zona geográfica que queremos representar. 
+
+Resolvemos:
+
+$$ \beta=(X^tW_sX)^{-1}X^tW_sY $$
+Con el modelo global general tendremos valores únicos de cada estimador para todos los puntos de nuestra muestra, asumiremos independencia espacial de los residuos y no tendrá en cuenta la distancia entre puntos a la hora de hacer una valoración.  
+  
+En el modelo ponderado geográficamente tendremos diferentes estimadores para cada una de las variables dependiendo del área geográfica, reduciremos o eliminaremos la dependencia espacial de los residuos y se tendrá en cuenta la distancia entre puntos a la hora de predecir.
+
+Este tipo de modelos se genera en 2 partes:
+
+1. Primero hay que definir s. ¿Cuál es el ancho espacial óptimo para ponderar nuestro modelo?. El algoritmo probará con diferentes distancias y decidirá cual es el ancho ideal.
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+#Convierto mi base de datos en base de datos espacial
+tabla$residuos<-modelo_espacial_sem$residuals
+puntos_sp<-tabla
+coordinates(puntos_sp)<- c("LONG","LAT")
+proj4string(puntos_sp) <- CRS("+proj=longlat +datum=WGS84")
+#Obtenemos el mejor BW
+bw <- gwr.sel(residuos~1, data=puntos_sp)
+
+paste("El mejor ancho de banda es:",bw)
+```
+
+2. Con este ancho de banda vamos a estimar el modelo. 
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+#Modelizamos
+g <- gwr(residuos~1, data=puntos_sp, bandwidth=bw)
+```
+
+**¿Qué hemos hecho?**
+
+¿Dependen los residuos del espacio?. Justamente estamos viendo si podríamos meter algún aspecto espacial adicional para completar nuestra modelización. 
+Nota: Estamos solamente metiendo el intercept en el modelo, pero este tipo de modelos también permiten meter más variables para ver si tienen algún comportamiento espacial. 
+
+
+```{r results='asis', size="small",warning=FALSE,message=FALSE}
+tabla$intercept<-g$SDF$`(Intercept)`
+#pl_pt(tabla,color2 = tabla$intercept,size2 =tabla$registo ,dd = 6) 
+```
+
+<center>
+![fig5.2.1](./figures/fig_5.2.1.jpg){width=100%} 
+<center>
+
+Interesante el patrón que estamos viendo en los datos. Resulta que después de haber hecho una modelización casi perfecta nos hemos dado cuenta que los datos tenían dependencia espacial y ahora nos damos cuenta que incluso después de vencer la dependencia espacial, tenemos una heterocedasticidad espacial importante. 
+
+**¿Y si sois directores de esta empresa?**
+**¿Os hubieseis quedado con el SuperModelo que veíamos en el apartado 2?**
+
+**¿Hasta qué punto es importante predecir bien las betas y contemplar todos estos puntos?**
+
+Hasta el punto de que está en juego la supervivencia de la empresa. Imaginemos que antes de conocer las técnicas espaciales ponemos en marcha una acción comercial por la que los individuos más propensos a comprar (los que creemos que son los más propensos), van a pagar menor coste de servicio. 
+Otra compañía (competencia) va a dar exactamente la misma noticia a los clientes, pero seleccionando con este último modelo sus clientes más propensos.
+
+**¿Qué va a ocurrir?**   
+
+Los clientes propensos de verdad, van a irse directamente a la compañía que mejor los elige. Los menos propensos, si creen que van a ser elegidos como buenos consumidores, van a irse a la compañía que peor elige a sus clientes y así en bucle. 
+Al final del bucle la compañía que mejor elige a sus clientes dado que ha ido creciendo con clientes buenos, puede abaratar los costes puesto que trabaja con economías de escala y dada toda la producción que tiene, puede establecer unos costes muy bajos. A la compañía que ha elegido peor a sus clientes, le va a pasar totalmente lo contrario, por lo que al final todos los clientes independientemente de la oferta, van a querer comprar con la compañía que mejor eligió a sus clientes. 
+
+
+# Conclusiones 
+
+A lo largo de estos temas hemos visto el proceso de modelización dentro de la regresión lineal con todas sus características y posibilidades. Existe todo un elenco de algoritmos y metodologías para estimar fenómenos. Dentro de las que vamos a estudiar en el master, podemos decir que todas tienen su utilidad y dependiendo del problema a tratar serán mejores unas que otras.  
+Vuestro trabajo es decidir cuál de dichas herramientas es la más apropiada para poder estructurar y resolver un determinado problema. Solo conociendo las tripas de los algoritmos vamos a ser capaces de poder entender bien las soluciones y los retos que se nos plantean.   
+
+Estas herramientas que hemos visto a lo largo del tema, son de las más utilizadas en la práctica por su flexibilidad, por sus propiedades estadísticas e interpretabilidad de resultados. Hay todo un mundo de algoritmos más allá de los modelos lineales que hemos visto, pero os aseguro que entendiendo las partes del modelo lineal, lleváis buena parte del camino recorrida. 
+
+<center>
+![fig5.2.2](./figures/fig_5.2.2.jpg){width=100%}
+</center>
+Fuente de la Imagen: [Elaboración Propia]
+
+
+
+  
